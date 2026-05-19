@@ -1,16 +1,7 @@
 import { useEffect } from 'react';
+import { isTextInput } from '../utils/keyboard';
 import { KEYBOARD_MOVE_STEP, KEYBOARD_MOVE_STEP_FAST } from '../utils/propPosition';
 import { useStageStore } from '../store/stageStore';
-
-function isTextInput(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false;
-  if (target.tagName === 'TEXTAREA') return true;
-  if (target.tagName === 'INPUT') {
-    const type = (target as HTMLInputElement).type;
-    return ['text', 'number', 'search', 'email', 'password'].includes(type);
-  }
-  return target.isContentEditable;
-}
 
 export function useKeyboardShortcuts() {
   useEffect(() => {
@@ -54,18 +45,9 @@ export function useKeyboardShortcuts() {
           event.preventDefault();
           state.moveSelectedPropVertical(-step);
           break;
-        case 'Delete':
         case 'Backspace':
           event.preventDefault();
           state.deleteSelectedProp();
-          break;
-        case 'r':
-        case 'R':
-          if (event.shiftKey) {
-            state.rotateSelected(-Math.PI / 4);
-          } else {
-            state.rotateSelected(Math.PI / 4);
-          }
           break;
         case 'h':
         case 'H':

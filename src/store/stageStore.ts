@@ -4,7 +4,9 @@ import { getDefaultPropColor } from '../constants/propColors';
 import { normalizeHexColor } from '../utils/color';
 import { createNewProp, clampPropScale } from '../utils/propDefaults';
 import { PROP_TAG_MAX_LENGTH } from '../constants/props';
-import { normalizePropPosition } from '../utils/propPosition';
+import { clampStageDimension } from '../utils/stageDimensions';
+import { shiftGroundedPropsForStageHeight } from '../utils/propBounds';
+import { normalizePropPosition, normalizeRotation } from '../utils/propPosition';
 import type { NewPlacedProp } from '../utils/propDefaults';
 
 interface StageState {
@@ -25,6 +27,7 @@ interface StageState {
   removeProp: (id: string) => void;
   selectProp: (id: string | null) => void;
   rotateSelected: (deltaRadians: number) => void;
+  setSelectedPropRotation: (rotation: number) => void;
   moveSelectedProp: (dx: number, dz: number) => void;
   moveSelectedPropVertical: (dy: number) => void;
   setSelectedPropPosition: (x: number, z: number, y?: number) => void;
@@ -52,7 +55,19 @@ export const useStageStore = create<StageState>((set, get) => ({
   snapToGrid: true,
 
   setStageDimension: (key, value) =>
-    set((s) => ({ stage: { ...s.stage, [key]: value } })),
+    set((s) => {
+      const clamped = clampStageDimension(key, value);
+      if (key !== 'height') {
+        return { stage: { ...s.stage, [key]: clamped } };
+      }
+      const oldTop = s.stage.height;
+      const newTop = clamped;
+      const stage = { ...s.stage, height: newTop };
+      return {
+        stage,
+        props: shiftGroundedPropsForStageHeight(s.props, oldTop, newTop),
+      };
+    }),
 
   setStage: (stage) => set((s) => ({ stage: { ...s.stage, ...stage } })),
 
@@ -96,7 +111,15 @@ export const useStageStore = create<StageState>((set, get) => ({
     if (!selectedPropId) return;
     const prop = props.find((p) => p.id === selectedPropId);
     if (!prop) return;
-    updateProp(selectedPropId, { rotation: prop.rotation + deltaRadians });
+    updateProp(selectedPropId, {
+      rotation: normalizeRotation(prop.rotation + deltaRadians),
+    });
+  },
+
+  setSelectedPropRotation: (rotation) => {
+    const { selectedPropId, updateProp } = get();
+    if (!selectedPropId) return;
+    updateProp(selectedPropId, { rotation: normalizeRotation(rotation) });
   },
 
   moveSelectedProp: (dx, dz) => {
@@ -112,6 +135,7 @@ export const useStageStore = create<StageState>((set, get) => ({
       stage.width / 2,
       snapToGrid,
       stage.height,
+      prop,
     );
     updateProp(selectedPropId, { position });
   },
@@ -129,6 +153,7 @@ export const useStageStore = create<StageState>((set, get) => ({
       stage.width / 2,
       snapToGrid,
       stage.height,
+      prop,
     );
     updateProp(selectedPropId, { position });
   },
@@ -146,6 +171,7 @@ export const useStageStore = create<StageState>((set, get) => ({
       stage.width / 2,
       snapToGrid,
       stage.height,
+      prop,
     );
     updateProp(selectedPropId, { position });
   },
@@ -156,9 +182,22 @@ export const useStageStore = create<StageState>((set, get) => ({
   },
 
   setSelectedPropScale: (scale) => {
-    const { selectedPropId, updateProp } = get();
+    const { selectedPropId, props, stage, snapToGrid, updateProp } = get();
     if (!selectedPropId) return;
-    updateProp(selectedPropId, { scale: clampPropScale(scale) });
+    const prop = props.find((p) => p.id === selectedPropId);
+    if (!prop) return;
+    const nextScale = clampPropScale(scale);
+    const position = normalizePropPosition(
+      prop.position[0],
+      prop.position[1],
+      prop.position[2],
+      stage.length / 2,
+      stage.width / 2,
+      snapToGrid,
+      stage.height,
+      { ...prop, scale: nextScale },
+    );
+    updateProp(selectedPropId, { scale: nextScale, position });
   },
 
   togglePropVisibility: (id) => {

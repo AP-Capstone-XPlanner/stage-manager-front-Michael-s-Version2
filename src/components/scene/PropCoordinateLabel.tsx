@@ -1,5 +1,5 @@
 import { Html } from '@react-three/drei';
-import { heightAboveStage, radiansToDegrees } from '../../utils/propPosition';
+import { heightAboveStage, rotationDisplayDegrees } from '../../utils/propPosition';
 import { useStageStore } from '../../store/stageStore';
 import type { PlacedProp } from '../../types';
 
@@ -7,7 +7,7 @@ export function PropCoordinateLabel({ prop }: { prop: PlacedProp }) {
   const [x, y, z] = prop.position;
   const stageTopY = useStageStore((s) => s.stage.height);
   const lift = heightAboveStage(y, stageTopY);
-  const rotationDeg = radiansToDegrees(prop.rotation);
+  const rotationDeg = rotationDisplayDegrees(prop.rotation);
 
   return (
     <Html

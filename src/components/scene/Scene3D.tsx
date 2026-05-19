@@ -1,12 +1,16 @@
+import { useRef } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { Grid, OrbitControls } from '@react-three/drei';
+import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import { useStageStore } from '../../store/stageStore';
+import { CameraKeyboardControls } from './CameraKeyboardControls';
 import { PlacementController } from './PlacementController';
 import { PlacedProps } from './PlacedProps';
 import { StageGuides } from './StageGuides';
 import { StagePlatform } from './StagePlatform';
 
 function SceneContent() {
+  const controlsRef = useRef<OrbitControlsImpl>(null);
   const selectProp = useStageStore((s) => s.selectProp);
   const mode = useStageStore((s) => s.mode);
   const stage = useStageStore((s) => s.stage);
@@ -56,6 +60,7 @@ function SceneContent() {
         <meshStandardMaterial color="#14161c" roughness={1} />
       </mesh>
       <OrbitControls
+        ref={controlsRef}
         makeDefault
         minPolarAngle={0.2}
         maxPolarAngle={Math.PI / 2 - 0.08}
@@ -63,6 +68,7 @@ function SceneContent() {
         maxDistance={maxExtent * 2}
         target={[0, stage.height + 0.5, 0]}
       />
+      <CameraKeyboardControls controlsRef={controlsRef} />
     </>
   );
 }

@@ -62,13 +62,13 @@ export const GRID_SNAP = 0.25;
 
 export const STAGE_LIMITS = {
   length: { min: 4, max: 40 },
-  width: { min: 4, max: 30 },
+  width: { min: 4, max: 40 },
   height: { min: 0, max: 3 },
 };
 
 export const PROP_SCALE_LIMITS = {
   min: 0.25,
-  max: 3,
+  max: 30,
   step: 0.05,
   default: 1,
 };

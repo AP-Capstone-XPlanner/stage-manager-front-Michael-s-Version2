@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import {
   PROP_CATALOG,
   PROP_SCALE_LIMITS,
@@ -8,12 +9,12 @@ import { useStageStore } from '../../store/stageStore';
 import {
   heightAboveStage,
   PROP_MAX_HEIGHT_ABOVE_STAGE,
-  radiansToDegrees,
+  rotationDisplayDegrees,
 } from '../../utils/propPosition';
 import { PropColorPicker } from './PropColorPicker';
 import { PropList } from './PropList';
 
-function DimensionSlider({
+function DimensionControl({
   label,
   value,
   min,
@@ -30,22 +31,55 @@ function DimensionSlider({
   unit: string;
   onChange: (v: number) => void;
 }) {
+  const decimals = step < 1 ? 1 : 0;
+  const [inputText, setInputText] = useState(() => value.toFixed(decimals));
+
+  useEffect(() => {
+    setInputText(value.toFixed(decimals));
+  }, [value, decimals]);
+
+  const commitInput = () => {
+    const parsed = parseFloat(inputText);
+    const next = Number.isFinite(parsed) ? parsed : value;
+    const clamped = Math.min(max, Math.max(min, next));
+    onChange(clamped);
+    setInputText(clamped.toFixed(decimals));
+  };
+
   return (
     <label className="control-row">
       <div className="control-label">
         <span>{label}</span>
         <span className="control-value">
-          {value.toFixed(step < 1 ? 1 : 0)} {unit}
+          {value.toFixed(decimals)} {unit}
         </span>
       </div>
-      <input
-        type="range"
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        onChange={(e) => onChange(parseFloat(e.target.value))}
-      />
+      <div className="dimension-input-row">
+        <input
+          type="range"
+          min={min}
+          max={max}
+          step={step}
+          value={value}
+          onChange={(e) => onChange(parseFloat(e.target.value))}
+        />
+        <input
+          type="number"
+          className="dimension-number"
+          min={min}
+          max={max}
+          step={step}
+          value={inputText}
+          onChange={(e) => setInputText(e.target.value)}
+          onBlur={commitInput}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              commitInput();
+            }
+          }}
+        />
+      </div>
     </label>
   );
 }
@@ -69,7 +103,6 @@ export function Sidebar() {
   const setSelectedPropColor = useStageStore((s) => s.setSelectedPropColor);
   const toggleSnap = useStageStore((s) => s.toggleSnap);
   const clearAllProps = useStageStore((s) => s.clearAllProps);
-
   const selectedProp = props.find((p) => p.id === selectedPropId);
   const hiddenCount = props.filter((p) => !p.visible).length;
 
@@ -82,8 +115,10 @@ export function Sidebar() {
 
       <section className="panel">
         <h2>Stage</h2>
-        <p className="panel-hint">Set the platform size (meters)</p>
-        <DimensionSlider
+        <p className="panel-hint">
+          Set the platform size (meters). Length and width up to 40 m.
+        </p>
+        <DimensionControl
           label="Length"
           value={stage.length}
           min={STAGE_LIMITS.length.min}
@@ -92,7 +127,7 @@ export function Sidebar() {
           unit="m"
           onChange={(v) => setStageDimension('length', v)}
         />
-        <DimensionSlider
+        <DimensionControl
           label="Width"
           value={stage.width}
           min={STAGE_LIMITS.width.min}
@@ -101,7 +136,7 @@ export function Sidebar() {
           unit="m"
           onChange={(v) => setStageDimension('width', v)}
         />
-        <DimensionSlider
+        <DimensionControl
           label="Height"
           value={stage.height}
           min={STAGE_LIMITS.height.min}
@@ -230,11 +265,13 @@ export function Sidebar() {
               </label>
               <div className="coord-readonly">
                 <span>Rotation</span>
-                <strong>{radiansToDegrees(selectedProp.rotation).toFixed(0)} deg</strong>
+                <strong>
+                  {rotationDisplayDegrees(selectedProp.rotation).toFixed(0)}°
+                </strong>
               </div>
             </div>
           </div>
-          <DimensionSlider
+          <DimensionControl
             label="Size"
             value={selectedProp.scale}
             min={PROP_SCALE_LIMITS.min}
@@ -259,6 +296,10 @@ export function Sidebar() {
               bring this back.
             </p>
           )}
+          <p className="panel-hint">
+            Blue ring marks position — hover to highlight, drag to rotate.
+            Backspace removes the prop. Props on the deck move with stage height.
+          </p>
           <div className="btn-row">
             <button
               type="button"
@@ -280,7 +321,7 @@ export function Sidebar() {
             className="btn danger"
             onClick={() => deleteSelectedProp()}
           >
-            Delete prop (Del)
+            Delete prop (Backspace)
           </button>
         </section>
       )}
@@ -302,12 +343,13 @@ export function Sidebar() {
 
       <footer className="help">
         <p>
-          <strong>Navigate:</strong> drag to orbit ? scroll to zoom ? right-drag
-          to pan.
+          <strong>Navigate:</strong> drag to orbit, scroll to zoom, right-drag to
+          pan. WASD move, Q/E yaw, R/F pitch, Z/X zoom.
         </p>
         <p>
-          <strong>Props:</strong> arrows move on stage, PgUp/PgDn height, drag
-          gizmo (incl. green Y axis), R rotate, Del delete, H hide, [ ] resize.
+          <strong>Props:</strong> arrows move, PgUp/PgDn height, drag blue ring or
+          gizmo to rotate, Backspace to remove, H hide, [ ] resize. R/F always
+          adjust camera pitch.
         </p>
       </footer>
     </aside>

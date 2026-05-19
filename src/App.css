@@ -116,6 +116,33 @@
   font-variant-numeric: tabular-nums;
 }
 
+.dimension-input-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.dimension-input-row input[type='range'] {
+  flex: 1;
+  min-width: 0;
+}
+
+.dimension-number {
+  width: 4.25rem;
+  padding: 0.3rem 0.4rem;
+  font-size: 0.8rem;
+  color: #e4e4e7;
+  background: #0f1117;
+  border: 1px solid #2a2d38;
+  border-radius: 4px;
+  font-variant-numeric: tabular-nums;
+}
+
+.dimension-number:focus {
+  outline: none;
+  border-color: #38bdf8;
+}
+
 input[type='range'] {
   width: 100%;
   accent-color: #38bdf8;
