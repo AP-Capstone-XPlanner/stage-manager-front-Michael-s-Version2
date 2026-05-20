@@ -6,7 +6,7 @@ import { CAMERA_CONTROL_KEYS, isTextInput } from '../../utils/keyboard';
 
 const MOVE_SPEED = 8;
 const ROTATE_SPEED = 1.2;
-const ZOOM_SPEED = 10;
+const ZOOM_SPEED = 15;
 
 const forward = new THREE.Vector3();
 const right = new THREE.Vector3();
@@ -87,11 +87,11 @@ export function CameraKeyboardControls({
     spherical.setFromVector3(offset);
 
     if (keys.has('q')) {
-      spherical.theta += ROTATE_SPEED * delta;
+      spherical.theta -= ROTATE_SPEED * delta;
       changed = true;
     }
     if (keys.has('e')) {
-      spherical.theta -= ROTATE_SPEED * delta;
+      spherical.theta += ROTATE_SPEED * delta;
       changed = true;
     }
     if (keys.has('r')) {

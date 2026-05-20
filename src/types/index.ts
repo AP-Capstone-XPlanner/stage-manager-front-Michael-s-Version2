@@ -6,12 +6,24 @@ export type PropType =
   | 'stairs'
   | 'platform'
   | 'square'
-  | 'circle';
+  | 'circle'
+  | 'box';
+
+export type ChairVariant = 'with_back' | 'no_back' | 'low' | 'high';
+
+export type StageTexture = 'dark_wood' | 'light_wood' | 'matte_black';
 
 export interface StageDimensions {
   length: number;
   width: number;
   height: number;
+}
+
+/** Width (X), height (Y), depth (Z) in meters — used by big_screen and box. */
+export interface PropDimensions {
+  width: number;
+  height: number;
+  depth: number;
 }
 
 export interface PlacedProp {
@@ -27,6 +39,14 @@ export interface PlacedProp {
   tag: string;
   /** Primary surface color (hex). */
   color: string;
+  /** Custom size for big_screen / box. */
+  dimensions?: PropDimensions;
+  /** Chair style when type is chair. */
+  chairVariant?: ChairVariant;
 }
 
 export type EditorMode = 'select' | 'place';
+
+export interface PlacementOptions {
+  chairVariant?: ChairVariant;
+}

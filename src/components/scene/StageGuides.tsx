@@ -1,61 +1,43 @@
-import { useMemo } from 'react';
 import { Line } from '@react-three/drei';
 import { useStageStore } from '../../store/stageStore';
 
-const GUIDE_SPACING = 1;
+const CENTER_LINE_COLOR = '#38bdf8';
 
+/** Center cross baseline — always renders above area grid when enabled. */
 export function StageGuides() {
+  const showStageBaseline = useStageStore((s) => s.showStageBaseline);
   const { length, width, height } = useStageStore((s) => s.stage);
 
-  const guides = useMemo(() => {
-    const y = height + 0.004;
-    const halfLength = length / 2;
-    const halfWidth = width / 2;
-    const items: {
-      points: [number, number, number][];
-      center: boolean;
-    }[] = [];
+  if (!showStageBaseline) return null;
 
-    for (let z = -halfWidth; z <= halfWidth + 0.001; z += GUIDE_SPACING) {
-      const center = Math.abs(z) < 0.001;
-      items.push({
-        points: [
-          [-halfLength, y, z],
-          [halfLength, y, z],
-        ],
-        center,
-      });
-    }
-
-    for (let x = -halfLength; x <= halfLength + 0.001; x += GUIDE_SPACING) {
-      if (Math.abs(x) < 0.001) continue;
-      items.push({
-        points: [
-          [x, y, -halfWidth],
-          [x, y, halfWidth],
-        ],
-        center: false,
-      });
-    }
-
-    return items;
-  }, [length, width, height]);
+  const y = height + 0.014;
+  const halfLength = length / 2;
+  const halfWidth = width / 2;
 
   return (
-    <group>
-      {guides.map((guide, index) => (
-        <Line
-          key={index}
-          points={guide.points}
-          color={guide.center ? '#38bdf8' : '#94a3b8'}
-          lineWidth={guide.center ? 2 : 1}
-          dashed={!guide.center}
-          dashSize={0.5}
-          gapSize={0.35}
-          transparent
-          opacity={guide.center ? 0.85 : 0.45}
-        />
-      ))}
+    <group renderOrder={10}>
+      <Line
+        points={[
+          [-halfLength, y, 0],
+          [halfLength, y, 0],
+        ]}
+        color={CENTER_LINE_COLOR}
+        lineWidth={2}
+        transparent
+        opacity={0.95}
+        depthWrite={false}
+      />
+      <Line
+        points={[
+          [0, y, -halfWidth],
+          [0, y, halfWidth],
+        ]}
+        color={CENTER_LINE_COLOR}
+        lineWidth={2}
+        transparent
+        opacity={0.95}
+        depthWrite={false}
+      />
     </group>
   );
 }

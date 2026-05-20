@@ -11,8 +11,14 @@ export const PROP_CATALOG: PropCatalogItem[] = [
   {
     type: 'big_screen',
     label: 'Big Screen',
-    description: 'LED wall or projection screen',
+    description: 'Flat display panel (adjustable width & height)',
     icon: '🖥️',
+  },
+  {
+    type: 'box',
+    label: 'Box',
+    description: 'Rectangular volume (L × W × H)',
+    icon: '📦',
   },
   {
     type: 'screen',
@@ -30,7 +36,7 @@ export const PROP_CATALOG: PropCatalogItem[] = [
     type: 'platform',
     label: 'Platform',
     description: 'Raised platform or riser block',
-    icon: '📦',
+    icon: '🟫',
   },
   {
     type: 'square',

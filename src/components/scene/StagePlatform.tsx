@@ -1,21 +1,51 @@
+import { useLayoutEffect, useMemo } from 'react';
 import { Edges } from '@react-three/drei';
+import { STAGE_SURFACE_COLORS } from '../../constants/stage';
+import {
+  applyStageDeckTextureRepeat,
+  getStageDeckTexture,
+} from '../../utils/proceduralTextures';
 import { useStageStore } from '../../store/stageStore';
+import { StageMeterGrid } from './StageMeterGrid';
 
 export function StagePlatform() {
   const { length, width, height } = useStageStore((s) => s.stage);
+  const texture = useStageStore((s) => s.stageTexture);
+  const surface = STAGE_SURFACE_COLORS[texture];
   const topY = height;
+
+  const deckMap = useMemo(() => getStageDeckTexture(texture), [texture]);
+
+  useLayoutEffect(() => {
+    applyStageDeckTextureRepeat(deckMap, length, width);
+  }, [deckMap, length, width]);
 
   return (
     <group>
       <mesh position={[0, height / 2, 0]} receiveShadow castShadow>
         <boxGeometry args={[length, height, width]} />
-        <meshStandardMaterial color="#52525b" roughness={0.85} metalness={0.08} />
-        <Edges color="#a1a1aa" threshold={15} />
+        <meshStandardMaterial
+          color={surface.body}
+          roughness={surface.roughness}
+          metalness={surface.metalness}
+        />
+        <Edges color={surface.edge} threshold={15} />
       </mesh>
-      <mesh position={[0, topY + 0.003, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+      <mesh
+        position={[0, topY + 0.004, 0]}
+        rotation={[-Math.PI / 2, 0, 0]}
+        receiveShadow
+        renderOrder={1}
+      >
         <planeGeometry args={[length, width]} />
-        <meshStandardMaterial color="#71717a" roughness={0.65} />
+        <meshStandardMaterial
+          map={deckMap}
+          color="#ffffff"
+          roughness={surface.roughness}
+          metalness={surface.metalness}
+        />
       </mesh>
+      <StageMeterGrid />
     </group>
   );
 }

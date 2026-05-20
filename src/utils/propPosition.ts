@@ -1,10 +1,13 @@
 import { GRID_SNAP } from '../constants/props';
-import type { PropType } from '../types';
+import type { PropDimensions, PropType } from '../types';
 import { getPropLocalBottom } from './propBounds';
 import { snapValue } from './snap';
 
 /** Max height (m) a prop can be placed above the stage deck. */
 export const PROP_MAX_HEIGHT_ABOVE_STAGE = 12;
+
+/** Snap step when editing position from the selected panel (spinner arrows). */
+export const POSITION_PANEL_SNAP = 0.01;
 
 export function clampPropXZ(
   x: number,
@@ -24,10 +27,14 @@ export function clampPropOriginY(
   stageTopY: number,
   type: PropType,
   scale: number,
+  dimensions?: PropDimensions,
 ): number {
   const localBottom = getPropLocalBottom(type);
   const minY = stageTopY - localBottom * scale;
-  const maxY = stageTopY + PROP_MAX_HEIGHT_ABOVE_STAGE - localBottom * scale;
+  let maxY = stageTopY + PROP_MAX_HEIGHT_ABOVE_STAGE - localBottom * scale;
+  if (dimensions) {
+    maxY = stageTopY + PROP_MAX_HEIGHT_ABOVE_STAGE - dimensions.height * scale;
+  }
   return Math.max(minY, Math.min(maxY, y));
 }
 
@@ -39,14 +46,21 @@ export function normalizePropPosition(
   halfWidth: number,
   snapToGrid: boolean,
   stageTopY: number,
-  prop?: { type: PropType; scale: number },
+  prop?: { type: PropType; scale: number; dimensions?: PropDimensions },
+  snapStep: number = GRID_SNAP,
 ): [number, number, number] {
-  let nx = snapValue(x, snapToGrid);
-  let ny = snapValue(y, snapToGrid);
-  let nz = snapValue(z, snapToGrid);
+  let nx = snapValue(x, snapToGrid, snapStep);
+  let ny = snapValue(y, snapToGrid, snapStep);
+  let nz = snapValue(z, snapToGrid, snapStep);
   const clamped = clampPropXZ(nx, nz, halfLength, halfWidth);
   if (prop) {
-    ny = clampPropOriginY(ny, stageTopY, prop.type, prop.scale);
+    ny = clampPropOriginY(
+      ny,
+      stageTopY,
+      prop.type,
+      prop.scale,
+      prop.dimensions,
+    );
   } else {
     ny = Math.max(
       stageTopY,

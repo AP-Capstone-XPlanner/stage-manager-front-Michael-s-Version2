@@ -3,18 +3,33 @@ import { isTextInput } from '../utils/keyboard';
 import { KEYBOARD_MOVE_STEP, KEYBOARD_MOVE_STEP_FAST } from '../utils/propPosition';
 import { useStageStore } from '../store/stageStore';
 
+function isEscapeKey(event: KeyboardEvent): boolean {
+  return event.key === 'Escape' || event.code === 'Escape';
+}
+
 export function useKeyboardShortcuts() {
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      if (isEscapeKey(event)) {
+        const inTextInput = isTextInput(event.target);
+        if (inTextInput && event.target instanceof HTMLElement) {
+          event.target.blur();
+        }
+
+        const handled = useStageStore.getState().handleEscapeKey({
+          fromTextInput: inTextInput,
+        });
+        if (handled) {
+          event.preventDefault();
+          event.stopImmediatePropagation();
+        }
+        return;
+      }
+
       if (isTextInput(event.target)) return;
 
       const state = useStageStore.getState();
-      const { selectedPropId, mode, cancelPlacement } = state;
-
-      if (event.key === 'Escape' && mode === 'place') {
-        cancelPlacement();
-        return;
-      }
+      const { selectedPropId } = state;
 
       if (!selectedPropId) return;
 
@@ -71,7 +86,7 @@ export function useKeyboardShortcuts() {
       }
     };
 
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
+    document.addEventListener('keydown', onKeyDown, true);
+    return () => document.removeEventListener('keydown', onKeyDown, true);
   }, []);
 }

@@ -6,13 +6,17 @@ export function PropList() {
   const selectedPropId = useStageStore((s) => s.selectedPropId);
   const selectProp = useStageStore((s) => s.selectProp);
   const togglePropVisibility = useStageStore((s) => s.togglePropVisibility);
+  const removeProp = useStageStore((s) => s.removeProp);
+  const clearAllProps = useStageStore((s) => s.clearAllProps);
 
   if (props.length === 0) return null;
 
   return (
     <section className="panel">
-      <h2>On stage</h2>
-      <p className="panel-hint">Click to select. Use the eye to hide or show.</p>
+      <div className="panel-title-row">
+        <h2>On stage</h2>
+      </div>
+      <p className="panel-hint">Click to select. Eye hides; trash deletes.</p>
       <ul className="prop-list">
         {props.map((prop) => {
           const label = PROP_CATALOG.find((p) => p.type === prop.type)?.label ?? prop.type;
@@ -50,10 +54,29 @@ export function PropList() {
               >
                 {prop.visible ? '👁' : '👁‍🗨'}
               </button>
+              <button
+                type="button"
+                className="prop-list-delete"
+                title="Delete prop"
+                aria-label="Delete prop"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  removeProp(prop.id);
+                }}
+              >
+                ✕
+              </button>
             </li>
           );
         })}
       </ul>
+      <button
+        type="button"
+        className="btn secondary prop-list-clear"
+        onClick={clearAllProps}
+      >
+        Clear all props
+      </button>
     </section>
   );
 }

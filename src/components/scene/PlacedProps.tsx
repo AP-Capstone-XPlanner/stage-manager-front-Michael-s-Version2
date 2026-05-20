@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import type { ThreeEvent } from '@react-three/fiber';
 import { TransformControls } from '@react-three/drei';
 import * as THREE from 'three';
@@ -7,6 +7,8 @@ import { useStageStore } from '../../store/stageStore';
 import type { PlacedProp } from '../../types';
 import { PropMesh } from '../props/PropMesh';
 import { useStageBounds, useStageTopY } from './StagePlatform';
+import { resolvePropDimensions } from '../../constants/propDimensions';
+import { getPropSelectionRingRadii } from '../../utils/propBounds';
 import { normalizePropPosition, normalizeRotation } from '../../utils/propPosition';
 import { PropCoordinateLabel } from './PropCoordinateLabel';
 import { PropTagLabel } from './PropTagLabel';
@@ -37,13 +39,16 @@ function PlacedPropItem({
   isSelected: boolean;
 }) {
   const groupRef = useRef<THREE.Group>(null);
-  const selectProp = useStageStore((s) => s.selectProp);
   const updateProp = useStageStore((s) => s.updateProp);
   const snapToGrid = useStageStore((s) => s.snapToGrid);
+  const positioningMode = useStageStore((s) => s.positioningMode);
   const topY = useStageTopY();
   const { halfLength, halfWidth } = useStageBounds();
   const orbitControls = useThree((s) => s.controls);
   const ringDragging = useRef(false);
+  const [ringDragActive, setRingDragActive] = useState(false);
+
+  const ringRadii = useMemo(() => getPropSelectionRingRadii(prop), [prop]);
 
   const setOrbitEnabled = useCallback((enabled: boolean) => {
     if (orbitControls && 'enabled' in orbitControls) {
@@ -64,10 +69,45 @@ function PlacedPropItem({
   const handleRingDragChange = useCallback(
     (dragging: boolean) => {
       ringDragging.current = dragging;
+      setRingDragActive(dragging);
       setOrbitEnabled(!dragging);
     },
     [setOrbitEnabled],
   );
+
+  const showInScene = prop.visible;
+  const showPositioning = isSelected && prop.visible && positioningMode;
+
+  useEffect(() => {
+    if (!showPositioning) {
+      ringDragging.current = false;
+      setRingDragActive(false);
+      setOrbitEnabled(true);
+    }
+  }, [showPositioning, setOrbitEnabled]);
+
+  useEffect(() => {
+    const group = groupRef.current;
+    if (!group) return;
+
+    const meshes: THREE.Mesh[] = [];
+    group.traverse((child) => {
+      if ((child as THREE.Mesh).isMesh) meshes.push(child as THREE.Mesh);
+    });
+
+    const saved = meshes.map((mesh) => mesh.raycast.bind(mesh));
+    if (showPositioning) {
+      meshes.forEach((mesh) => {
+        mesh.raycast = () => null;
+      });
+    }
+
+    return () => {
+      meshes.forEach((mesh, i) => {
+        mesh.raycast = saved[i];
+      });
+    };
+  }, [showPositioning, prop.id, prop.type, prop.scale]);
 
   const syncFromTransform = () => {
     if (!groupRef.current) return;
@@ -89,9 +129,6 @@ function PlacedPropItem({
     });
   };
 
-  const showInScene = prop.visible;
-  const showGizmo = isSelected && prop.visible;
-
   return (
     <>
       <group
@@ -103,22 +140,30 @@ function PlacedPropItem({
         onClick={(e: ThreeEvent<MouseEvent>) => {
           if (!prop.visible) return;
           e.stopPropagation();
-          selectProp(prop.id);
+          useStageStore.getState().selectProp(prop.id);
         }}
       >
-        <PropMesh type={prop.type} color={prop.color} />
+        <PropMesh
+          type={prop.type}
+          color={prop.color}
+          dimensions={resolvePropDimensions(prop)}
+          chairVariant={prop.chairVariant}
+        />
         <PropTagLabel tag={prop.tag} />
-        {isSelected && showInScene && (
-          <>
-            <BlueSelectionRing
-              groupRef={groupRef}
-              onRotate={handleRingRotate}
-              onDragChange={handleRingDragChange}
-            />
-            <PropCoordinateLabel prop={prop} />
-          </>
-        )}
+        {isSelected && showInScene && <PropCoordinateLabel prop={prop} />}
       </group>
+      {showPositioning && (
+        <group position={prop.position} rotation={[0, prop.rotation, 0]}>
+          <BlueSelectionRing
+            worldPosition={prop.position}
+            rotation={prop.rotation}
+            innerRadius={ringRadii.inner}
+            outerRadius={ringRadii.outer}
+            onRotate={handleRingRotate}
+            onDragChange={handleRingDragChange}
+          />
+        </group>
+      )}
       {isSelected && !prop.visible && (
         <group position={prop.position} rotation={[0, prop.rotation, 0]}>
           <HiddenPropMarker scale={prop.scale} color={prop.color} />
@@ -126,11 +171,14 @@ function PlacedPropItem({
           <PropCoordinateLabel prop={prop} />
         </group>
       )}
-      {showGizmo && (
+      {showPositioning && (
         <TransformControls
-          object={groupRef as React.RefObject<THREE.Object3D>}
+          object={groupRef as RefObject<THREE.Object3D>}
           mode="translate"
+          showX
           showY
+          showZ
+          enabled={!ringDragActive}
           onMouseDown={() => setOrbitEnabled(false)}
           onMouseUp={() => {
             if (!ringDragging.current) setOrbitEnabled(true);
@@ -155,4 +203,3 @@ function HiddenPropMarker({ scale, color }: { scale: number; color: string }) {
     </mesh>
   );
 }
-

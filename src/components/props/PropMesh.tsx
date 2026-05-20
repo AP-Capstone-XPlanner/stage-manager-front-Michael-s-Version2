@@ -1,10 +1,13 @@
-import type { PropType } from '../../types';
+import type { ChairVariant, PropDimensions, PropType } from '../../types';
+import { BIG_SCREEN_DEPTH } from '../../constants/propDimensions';
 import { adjustColorBrightness } from '../../utils/color';
 
 interface PropMeshProps {
   type: PropType;
   color: string;
   ghost?: boolean;
+  dimensions?: PropDimensions;
+  chairVariant?: ChairVariant;
 }
 
 function Material({
@@ -29,23 +32,40 @@ function Material({
   );
 }
 
-function BigScreen({ ghost, color }: { ghost?: boolean; color: string }) {
+function BigScreen({
+  ghost,
+  color,
+  dimensions,
+}: {
+  ghost?: boolean;
+  color: string;
+  dimensions: PropDimensions;
+}) {
+  const { width, height, depth = BIG_SCREEN_DEPTH } = dimensions;
   const accent = adjustColorBrightness(color, 0.12);
   return (
-    <group>
-      <mesh position={[0, 1.8, 0]}>
-        <boxGeometry args={[5, 2.8, 0.15]} />
-        <Material ghost={ghost} color={color} />
-      </mesh>
-      <mesh position={[0, 1.8, 0.08]}>
-        <boxGeometry args={[4.6, 2.4, 0.02]} />
-        <Material ghost={ghost} color={color} accent={accent} />
-      </mesh>
-      <mesh position={[0, 0.9, -0.2]}>
-        <boxGeometry args={[0.3, 1.8, 0.3]} />
-        <Material ghost={ghost} color={adjustColorBrightness(color, -0.1)} />
-      </mesh>
-    </group>
+    <mesh position={[0, height / 2, 0]}>
+      <boxGeometry args={[width, height, depth]} />
+      <Material ghost={ghost} color={color} accent={accent} />
+    </mesh>
+  );
+}
+
+function BoxProp({
+  ghost,
+  color,
+  dimensions,
+}: {
+  ghost?: boolean;
+  color: string;
+  dimensions: PropDimensions;
+}) {
+  const { width, height, depth } = dimensions;
+  return (
+    <mesh position={[0, height / 2, 0]}>
+      <boxGeometry args={[width, height, depth]} />
+      <Material ghost={ghost} color={color} />
+    </mesh>
   );
 }
 
@@ -140,8 +160,93 @@ function Circle({ ghost, color }: { ghost?: boolean; color: string }) {
   );
 }
 
-function Chair({ ghost, color }: { ghost?: boolean; color: string }) {
+function Chair({
+  ghost,
+  color,
+  variant = 'with_back',
+}: {
+  ghost?: boolean;
+  color: string;
+  variant?: ChairVariant;
+}) {
   const leg = adjustColorBrightness(color, -0.12);
+
+  if (variant === 'no_back') {
+    return (
+      <group>
+        <mesh position={[0, 0.42, 0]}>
+          <boxGeometry args={[0.48, 0.06, 0.48]} />
+          <Material ghost={ghost} color={color} />
+        </mesh>
+        {(
+          [
+            [-0.18, 0.2, -0.18],
+            [0.18, 0.2, -0.18],
+            [-0.18, 0.2, 0.18],
+            [0.18, 0.2, 0.18],
+          ] as const
+        ).map(([x, y, z], i) => (
+          <mesh key={i} position={[x, y, z]}>
+            <boxGeometry args={[0.05, 0.4, 0.05]} />
+            <Material ghost={ghost} color={leg} />
+          </mesh>
+        ))}
+      </group>
+    );
+  }
+
+  if (variant === 'low') {
+    return (
+      <group scale={[1, 0.72, 1]}>
+        <mesh position={[0, 0.32, 0]}>
+          <boxGeometry args={[0.44, 0.05, 0.44]} />
+          <Material ghost={ghost} color={color} />
+        </mesh>
+        {(
+          [
+            [-0.16, 0.15, -0.16],
+            [0.16, 0.15, -0.16],
+            [-0.16, 0.15, 0.16],
+            [0.16, 0.15, 0.16],
+          ] as const
+        ).map(([x, y, z], i) => (
+          <mesh key={i} position={[x, y, z]}>
+            <boxGeometry args={[0.04, 0.3, 0.04]} />
+            <Material ghost={ghost} color={leg} />
+          </mesh>
+        ))}
+      </group>
+    );
+  }
+
+  if (variant === 'high') {
+    return (
+      <group>
+        <mesh position={[0, 0.62, 0]}>
+          <boxGeometry args={[0.42, 0.06, 0.42]} />
+          <Material ghost={ghost} color={color} />
+        </mesh>
+        <mesh position={[0, 0.95, -0.12]}>
+          <boxGeometry args={[0.42, 0.55, 0.05]} />
+          <Material ghost={ghost} color={color} />
+        </mesh>
+        {(
+          [
+            [-0.16, 0.3, -0.16],
+            [0.16, 0.3, -0.16],
+            [-0.16, 0.3, 0.16],
+            [0.16, 0.3, 0.16],
+          ] as const
+        ).map(([x, y, z], i) => (
+          <mesh key={i} position={[x, y, z]}>
+            <boxGeometry args={[0.04, 0.6, 0.04]} />
+            <Material ghost={ghost} color={leg} />
+          </mesh>
+        ))}
+      </group>
+    );
+  }
+
   return (
     <group>
       <mesh position={[0, 0.45, 0]}>
@@ -191,10 +296,38 @@ function Stairs({ ghost, color }: { ghost?: boolean; color: string }) {
   );
 }
 
-export function PropMesh({ type, color, ghost }: PropMeshProps) {
+export function PropMesh({
+  type,
+  color,
+  ghost,
+  dimensions,
+  chairVariant,
+}: PropMeshProps) {
   switch (type) {
     case 'big_screen':
-      return <BigScreen ghost={ghost} color={color} />;
+      return (
+        <BigScreen
+          ghost={ghost}
+          color={color}
+          dimensions={
+            dimensions ?? {
+              width: 5,
+              height: 2.8,
+              depth: BIG_SCREEN_DEPTH,
+            }
+          }
+        />
+      );
+    case 'box':
+      return (
+        <BoxProp
+          ghost={ghost}
+          color={color}
+          dimensions={
+            dimensions ?? { width: 1, height: 1, depth: 1 }
+          }
+        />
+      );
     case 'screen':
       return <Screen ghost={ghost} color={color} />;
     case 'table':
@@ -206,7 +339,9 @@ export function PropMesh({ type, color, ghost }: PropMeshProps) {
     case 'circle':
       return <Circle ghost={ghost} color={color} />;
     case 'chair':
-      return <Chair ghost={ghost} color={color} />;
+      return (
+        <Chair ghost={ghost} color={color} variant={chairVariant ?? 'with_back'} />
+      );
     case 'stairs':
       return <Stairs ghost={ghost} color={color} />;
   }

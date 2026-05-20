@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useStageStore } from '../../store/stageStore';
+import { getDefaultPropDimensions } from '../../constants/propDimensions';
 import { getDefaultPropColor } from '../../constants/propColors';
 import { createNewProp } from '../../utils/propDefaults';
 import { snapValue } from '../../utils/snap';
@@ -11,11 +12,10 @@ import { useStageBounds, useStageTopY } from './StagePlatform';
 export function PlacementController() {
   const mode = useStageStore((s) => s.mode);
   const placementType = useStageStore((s) => s.placementType);
+  const placementChairVariant = useStageStore((s) => s.placementChairVariant);
   const snapToGrid = useStageStore((s) => s.snapToGrid);
   const addProp = useStageStore((s) => s.addProp);
   const cancelPlacement = useStageStore((s) => s.cancelPlacement);
-  const selectProp = useStageStore((s) => s.selectProp);
-
   const topY = useStageTopY();
   const { halfLength, halfWidth } = useStageBounds();
   const { camera, raycaster, gl } = useThree();
@@ -73,6 +73,26 @@ export function PlacementController() {
 
   if (!isPlacing || !placementType) return null;
 
+  const ghostDimensions = getDefaultPropDimensions(
+    placementType,
+    placementChairVariant ?? undefined,
+  );
+  const ghostChairVariant =
+    placementType === 'chair'
+      ? (placementChairVariant ?? 'with_back')
+      : undefined;
+
+  const placeAt = (position: [number, number, number]) => {
+    addProp(
+      createNewProp({
+        type: placementType,
+        position,
+        rotation: 0,
+        chairVariant: ghostChairVariant,
+      }),
+    );
+  };
+
   return (
     <>
       <mesh
@@ -91,13 +111,7 @@ export function PlacementController() {
         onClick={(e) => {
           e.stopPropagation();
           if (!ghostPos) return;
-          addProp(
-            createNewProp({
-              type: placementType,
-              position: ghostPos,
-              rotation: 0,
-            }),
-          );
+          placeAt(ghostPos);
         }}
       >
         <planeGeometry args={[halfLength * 2, halfWidth * 2]} />
@@ -107,6 +121,8 @@ export function PlacementController() {
           <PropMesh
             type={placementType}
             color={getDefaultPropColor(placementType)}
+            dimensions={ghostDimensions}
+            chairVariant={ghostChairVariant}
             ghost
           />
         </group>
@@ -116,17 +132,8 @@ export function PlacementController() {
         rotation={[-Math.PI / 2, 0, 0]}
         onClick={(e) => {
           e.stopPropagation();
-          if (ghostPos) {
-            addProp(
-              createNewProp({
-                type: placementType,
-                position: ghostPos,
-                rotation: 0,
-              }),
-            );
-          }
+          if (ghostPos) placeAt(ghostPos);
         }}
-        onPointerMissed={() => selectProp(null)}
       >
         <planeGeometry args={[halfLength * 2, halfWidth * 2]} />
         <meshBasicMaterial visible={false} />
