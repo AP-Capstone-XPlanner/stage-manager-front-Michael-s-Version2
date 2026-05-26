@@ -21,8 +21,10 @@ export function Sidebar() {
   const setStageTexture = useStageStore((s) => s.setStageTexture);
   const showStageBaseline = useStageStore((s) => s.showStageBaseline);
   const showStageAreaGrid = useStageStore((s) => s.showStageAreaGrid);
+  const showStageZones = useStageStore((s) => s.showStageZones);
   const setShowStageBaseline = useStageStore((s) => s.setShowStageBaseline);
   const setShowStageAreaGrid = useStageStore((s) => s.setShowStageAreaGrid);
+  const setShowStageZones = useStageStore((s) => s.setShowStageZones);
   const props = useStageStore((s) => s.props);
   const placementType = useStageStore((s) => s.placementType);
   const mode = useStageStore((s) => s.mode);
@@ -64,7 +66,8 @@ export function Sidebar() {
         <h2>Stage</h2>
         <StageTexturePicker value={stageTexture} onChange={setStageTexture} />
         <p className="panel-hint">
-          Platform size (meters). Length and width up to 40 m.
+          Platform size (m). Length = up↔down stage (Z); width = L↔R (X). Up to
+          40 m each.
         </p>
         <DimensionControl
           label="Length"
@@ -111,6 +114,14 @@ export function Sidebar() {
             onChange={(e) => setShowStageAreaGrid(e.target.checked)}
           />
           Show area grid (1 m cells)
+        </label>
+        <label className="toggle stage-toggle">
+          <input
+            type="checkbox"
+            checked={showStageZones}
+            onChange={(e) => setShowStageZones(e.target.checked)}
+          />
+          Show stage zones (3×3 + audience)
         </label>
       </section>
 

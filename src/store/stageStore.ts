@@ -34,6 +34,7 @@ import {
   POSITION_PANEL_SNAP,
 } from '../utils/propPosition';
 import type { NewPlacedProp } from '../utils/propDefaults';
+import { getStageHalfExtents } from '../utils/stageAxes';
 
 interface StageState {
   stage: StageDimensions;
@@ -49,6 +50,7 @@ interface StageState {
   snapToGrid: boolean;
   showStageBaseline: boolean;
   showStageAreaGrid: boolean;
+  showStageZones: boolean;
 
   setStageDimension: (key: keyof StageDimensions, value: number) => void;
   setStage: (stage: Partial<StageDimensions>) => void;
@@ -57,6 +59,7 @@ interface StageState {
   setStageTexture: (texture: StageTexture) => void;
   setShowStageBaseline: (show: boolean) => void;
   setShowStageAreaGrid: (show: boolean) => void;
+  setShowStageZones: (show: boolean) => void;
   startPlacement: (type: PropType, options?: PlacementOptions) => void;
   cancelPlacement: () => void;
   setMode: (mode: EditorMode) => void;
@@ -92,8 +95,8 @@ interface StageState {
 }
 
 const defaultStage: StageDimensions = {
-  length: 12,
-  width: 8,
+  length: 10,
+  width: 20,
   height: 0.6,
 };
 
@@ -111,6 +114,7 @@ export const useStageStore = create<StageState>((set, get) => ({
   snapToGrid: true,
   showStageBaseline: DEFAULT_SHOW_STAGE_BASELINE,
   showStageAreaGrid: false,
+  showStageZones: false,
 
   setStageDimension: (key, value) =>
     set((s) => {
@@ -140,6 +144,8 @@ export const useStageStore = create<StageState>((set, get) => ({
   setShowStageBaseline: (show) => set({ showStageBaseline: show }),
 
   setShowStageAreaGrid: (show) => set({ showStageAreaGrid: show }),
+
+  setShowStageZones: (show) => set({ showStageZones: show }),
 
   startPlacement: (type, options) =>
     set({
@@ -278,12 +284,13 @@ export const useStageStore = create<StageState>((set, get) => ({
     if (!selectedPropId) return;
     const prop = props.find((p) => p.id === selectedPropId);
     if (!prop) return;
+    const { halfX, halfZ } = getStageHalfExtents(stage.length, stage.width);
     const position = normalizePropPosition(
       prop.position[0] + dx,
       prop.position[1],
       prop.position[2] + dz,
-      stage.length / 2,
-      stage.width / 2,
+      halfX,
+      halfZ,
       snapToGrid,
       stage.height,
       prop,
@@ -300,8 +307,8 @@ export const useStageStore = create<StageState>((set, get) => ({
       prop.position[0],
       prop.position[1] + dy,
       prop.position[2],
-      stage.length / 2,
       stage.width / 2,
+      stage.length / 2,
       snapToGrid,
       stage.height,
       prop,
@@ -319,8 +326,8 @@ export const useStageStore = create<StageState>((set, get) => ({
       x,
       y ?? prop.position[1],
       z,
-      stage.length / 2,
       stage.width / 2,
+      stage.length / 2,
       fine || snapToGrid,
       stage.height,
       prop,
@@ -344,8 +351,8 @@ export const useStageStore = create<StageState>((set, get) => ({
       prop.position[0],
       prop.position[1],
       prop.position[2],
-      stage.length / 2,
       stage.width / 2,
+      stage.length / 2,
       snapToGrid,
       stage.height,
       { ...prop, scale: nextScale },
@@ -410,8 +417,8 @@ export const useStageStore = create<StageState>((set, get) => ({
       prop.position[0],
       prop.position[1],
       prop.position[2],
-      stage.length / 2,
       stage.width / 2,
+      stage.length / 2,
       snapToGrid,
       stage.height,
       { ...prop, dimensions: next },

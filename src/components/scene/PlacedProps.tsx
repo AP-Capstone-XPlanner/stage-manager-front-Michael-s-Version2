@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
-import type { ThreeEvent } from '@react-three/fiber';
+import { useFrame, type ThreeEvent } from '@react-three/fiber';
 import { TransformControls } from '@react-three/drei';
 import * as THREE from 'three';
 import { useThree } from '@react-three/fiber';
@@ -39,11 +39,12 @@ function PlacedPropItem({
   isSelected: boolean;
 }) {
   const groupRef = useRef<THREE.Group>(null);
+  const labelsGroupRef = useRef<THREE.Group>(null);
   const updateProp = useStageStore((s) => s.updateProp);
   const snapToGrid = useStageStore((s) => s.snapToGrid);
   const positioningMode = useStageStore((s) => s.positioningMode);
   const topY = useStageTopY();
-  const { halfLength, halfWidth } = useStageBounds();
+  const { halfX, halfZ } = useStageBounds();
   const orbitControls = useThree((s) => s.controls);
   const ringDragging = useRef(false);
   const [ringDragActive, setRingDragActive] = useState(false);
@@ -78,6 +79,15 @@ function PlacedPropItem({
   const showInScene = prop.visible;
   const showPositioning = isSelected && prop.visible && positioningMode;
 
+  useFrame(() => {
+    if (!showPositioning) return;
+    const labels = labelsGroupRef.current;
+    const mesh = groupRef.current;
+    if (!labels || !mesh) return;
+    labels.position.copy(mesh.position);
+    labels.rotation.copy(mesh.rotation);
+  });
+
   useEffect(() => {
     if (!showPositioning) {
       ringDragging.current = false;
@@ -109,15 +119,17 @@ function PlacedPropItem({
     };
   }, [showPositioning, prop.id, prop.type, prop.scale]);
 
-  const syncFromTransform = () => {
+  const syncTransformRaf = useRef<number | null>(null);
+
+  const syncFromTransform = useCallback(() => {
     if (!groupRef.current) return;
     const p = groupRef.current.position;
     const position = normalizePropPosition(
       p.x,
       p.y,
       p.z,
-      halfLength,
-      halfWidth,
+      halfX,
+      halfZ,
       snapToGrid,
       topY,
       prop,
@@ -127,7 +139,31 @@ function PlacedPropItem({
       position,
       rotation: normalizeRotation(groupRef.current.rotation.y),
     });
-  };
+  }, [
+    halfX,
+    halfZ,
+    snapToGrid,
+    topY,
+    prop,
+    updateProp,
+  ]);
+
+  const scheduleSyncFromTransform = useCallback(() => {
+    if (syncTransformRaf.current !== null) return;
+    syncTransformRaf.current = requestAnimationFrame(() => {
+      syncTransformRaf.current = null;
+      syncFromTransform();
+    });
+  }, [syncFromTransform]);
+
+  useEffect(
+    () => () => {
+      if (syncTransformRaf.current !== null) {
+        cancelAnimationFrame(syncTransformRaf.current);
+      }
+    },
+    [],
+  );
 
   return (
     <>
@@ -149,9 +185,25 @@ function PlacedPropItem({
           dimensions={resolvePropDimensions(prop)}
           chairVariant={prop.chairVariant}
         />
-        <PropTagLabel tag={prop.tag} />
-        {isSelected && showInScene && <PropCoordinateLabel prop={prop} />}
       </group>
+      {showInScene && (
+        <group
+          ref={labelsGroupRef}
+          position={prop.position}
+          rotation={[0, prop.rotation, 0]}
+        >
+          <PropTagLabel
+            tag={prop.tag}
+            selected={isSelected}
+            onSelect={
+              prop.tag.trim()
+                ? () => useStageStore.getState().selectProp(prop.id)
+                : undefined
+            }
+          />
+          {isSelected && <PropCoordinateLabel prop={prop} />}
+        </group>
+      )}
       {showPositioning && (
         <group position={prop.position} rotation={[0, prop.rotation, 0]}>
           <BlueSelectionRing
@@ -167,7 +219,7 @@ function PlacedPropItem({
       {isSelected && !prop.visible && (
         <group position={prop.position} rotation={[0, prop.rotation, 0]}>
           <HiddenPropMarker scale={prop.scale} color={prop.color} />
-          <PropTagLabel tag={prop.tag} />
+          <PropTagLabel tag={prop.tag} selected />
           <PropCoordinateLabel prop={prop} />
         </group>
       )}
@@ -180,10 +232,11 @@ function PlacedPropItem({
           showZ
           enabled={!ringDragActive}
           onMouseDown={() => setOrbitEnabled(false)}
+          onChange={scheduleSyncFromTransform}
           onMouseUp={() => {
             if (!ringDragging.current) setOrbitEnabled(true);
+            syncFromTransform();
           }}
-          onChange={syncFromTransform}
         />
       )}
     </>

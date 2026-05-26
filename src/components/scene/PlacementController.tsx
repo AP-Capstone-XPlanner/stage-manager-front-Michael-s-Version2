@@ -17,7 +17,7 @@ export function PlacementController() {
   const addProp = useStageStore((s) => s.addProp);
   const cancelPlacement = useStageStore((s) => s.cancelPlacement);
   const topY = useStageTopY();
-  const { halfLength, halfWidth } = useStageBounds();
+  const { halfX, halfZ } = useStageBounds();
   const { camera, raycaster, gl } = useThree();
 
   const planeRef = useRef<THREE.Mesh>(null);
@@ -43,8 +43,8 @@ export function PlacementController() {
       if (raycaster.ray.intersectPlane(plane, target)) {
         let x = snapValue(target.x, snapToGrid);
         let z = snapValue(target.z, snapToGrid);
-        x = THREE.MathUtils.clamp(x, -halfLength + 0.5, halfLength - 0.5);
-        z = THREE.MathUtils.clamp(z, -halfWidth + 0.5, halfWidth - 0.5);
+        x = THREE.MathUtils.clamp(x, -halfX + 0.5, halfX - 0.5);
+        z = THREE.MathUtils.clamp(z, -halfZ + 0.5, halfZ - 0.5);
         setGhostPos([x, topY, z]);
       }
     };
@@ -66,8 +66,8 @@ export function PlacementController() {
     gl,
     topY,
     snapToGrid,
-    halfLength,
-    halfWidth,
+    halfX,
+    halfZ,
     cancelPlacement,
   ]);
 
@@ -93,6 +93,18 @@ export function PlacementController() {
     );
   };
 
+  const positionFromPoint = (x: number, z: number): [number, number, number] => {
+    let sx = snapValue(x, snapToGrid);
+    let sz = snapValue(z, snapToGrid);
+    sx = THREE.MathUtils.clamp(sx, -halfX + 0.5, halfX - 0.5);
+    sz = THREE.MathUtils.clamp(sz, -halfZ + 0.5, halfZ - 0.5);
+    return [sx, topY, sz];
+  };
+
+  const placeFromEvent = (point: THREE.Vector3) => {
+    placeAt(positionFromPoint(point.x, point.z));
+  };
+
   return (
     <>
       <mesh
@@ -102,19 +114,14 @@ export function PlacementController() {
         visible={false}
         onPointerMove={(e) => {
           e.stopPropagation();
-          let x = snapValue(e.point.x, snapToGrid);
-          let z = snapValue(e.point.z, snapToGrid);
-          x = THREE.MathUtils.clamp(x, -halfLength + 0.5, halfLength - 0.5);
-          z = THREE.MathUtils.clamp(z, -halfWidth + 0.5, halfWidth - 0.5);
-          setGhostPos([x, topY, z]);
+          setGhostPos(positionFromPoint(e.point.x, e.point.z));
         }}
         onClick={(e) => {
           e.stopPropagation();
-          if (!ghostPos) return;
-          placeAt(ghostPos);
+          placeFromEvent(e.point);
         }}
       >
-        <planeGeometry args={[halfLength * 2, halfWidth * 2]} />
+        <planeGeometry args={[halfX * 2, halfZ * 2]} />
       </mesh>
       {ghostPos && (
         <group position={ghostPos}>
@@ -132,10 +139,10 @@ export function PlacementController() {
         rotation={[-Math.PI / 2, 0, 0]}
         onClick={(e) => {
           e.stopPropagation();
-          if (ghostPos) placeAt(ghostPos);
+          placeFromEvent(e.point);
         }}
       >
-        <planeGeometry args={[halfLength * 2, halfWidth * 2]} />
+        <planeGeometry args={[halfX * 2, halfZ * 2]} />
         <meshBasicMaterial visible={false} />
       </mesh>
     </>

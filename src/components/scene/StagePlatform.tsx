@@ -6,6 +6,7 @@ import {
   getStageDeckTexture,
 } from '../../utils/proceduralTextures';
 import { useStageStore } from '../../store/stageStore';
+import { getStageHalfExtents } from '../../utils/stageAxes';
 import { StageMeterGrid } from './StageMeterGrid';
 
 export function StagePlatform() {
@@ -17,13 +18,13 @@ export function StagePlatform() {
   const deckMap = useMemo(() => getStageDeckTexture(texture), [texture]);
 
   useLayoutEffect(() => {
-    applyStageDeckTextureRepeat(deckMap, length, width);
+    applyStageDeckTextureRepeat(deckMap, width, length);
   }, [deckMap, length, width]);
 
   return (
     <group>
       <mesh position={[0, height / 2, 0]} receiveShadow castShadow>
-        <boxGeometry args={[length, height, width]} />
+        <boxGeometry args={[width, height, length]} />
         <meshStandardMaterial
           color={surface.body}
           roughness={surface.roughness}
@@ -37,7 +38,7 @@ export function StagePlatform() {
         receiveShadow
         renderOrder={1}
       >
-        <planeGeometry args={[length, width]} />
+        <planeGeometry args={[width, length]} />
         <meshStandardMaterial
           map={deckMap}
           color="#ffffff"
@@ -56,5 +57,5 @@ export function useStageTopY(): number {
 
 export function useStageBounds() {
   const { length, width } = useStageStore((s) => s.stage);
-  return { halfLength: length / 2, halfWidth: width / 2 };
+  return getStageHalfExtents(length, width);
 }

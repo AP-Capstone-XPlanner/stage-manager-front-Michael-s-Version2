@@ -12,13 +12,13 @@ export const POSITION_PANEL_SNAP = 0.01;
 export function clampPropXZ(
   x: number,
   z: number,
-  halfLength: number,
-  halfWidth: number,
+  halfX: number,
+  halfZ: number,
   margin = 0.5,
 ): { x: number; z: number } {
   return {
-    x: Math.max(-halfLength + margin, Math.min(halfLength - margin, x)),
-    z: Math.max(-halfWidth + margin, Math.min(halfWidth - margin, z)),
+    x: Math.max(-halfX + margin, Math.min(halfX - margin, x)),
+    z: Math.max(-halfZ + margin, Math.min(halfZ - margin, z)),
   };
 }
 
@@ -42,8 +42,8 @@ export function normalizePropPosition(
   x: number,
   y: number,
   z: number,
-  halfLength: number,
-  halfWidth: number,
+  halfX: number,
+  halfZ: number,
   snapToGrid: boolean,
   stageTopY: number,
   prop?: { type: PropType; scale: number; dimensions?: PropDimensions },
@@ -52,7 +52,7 @@ export function normalizePropPosition(
   let nx = snapValue(x, snapToGrid, snapStep);
   let ny = snapValue(y, snapToGrid, snapStep);
   let nz = snapValue(z, snapToGrid, snapStep);
-  const clamped = clampPropXZ(nx, nz, halfLength, halfWidth);
+  const clamped = clampPropXZ(nx, nz, halfX, halfZ);
   if (prop) {
     ny = clampPropOriginY(
       ny,

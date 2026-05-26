@@ -8,6 +8,7 @@ const intersection = new THREE.Vector3();
 const center = new THREE.Vector3();
 const pointer = new THREE.Vector2();
 const worldPos = new THREE.Vector3();
+const hitPoint = new THREE.Vector3();
 
 const BLUE = '#38bdf8';
 const BLUE_HOVER = '#7dd3fc';
@@ -26,7 +27,6 @@ function createRingRaycast(
   padOuter: number,
 ) {
   const hitPlane = new THREE.Plane();
-  const hitPoint = new THREE.Vector3();
   const inner = innerRadius - padInner;
   const outer = outerRadius + padOuter;
 
@@ -42,10 +42,9 @@ function createRingRaycast(
     const dist = Math.hypot(hitPoint.x - worldPos.x, hitPoint.z - worldPos.z);
     if (dist < inner || dist > outer) return;
 
-    const distance = raycaster.ray.origin.distanceTo(hitPoint);
     intersects.push({
-      distance,
-      point: hitPoint.clone(),
+      distance: raycaster.ray.origin.distanceTo(hitPoint),
+      point: hitPoint,
       object: this,
     });
   };
@@ -69,11 +68,11 @@ export function BlueSelectionRing({
 }) {
   const { camera, gl, raycaster } = useThree();
   const hitMeshRef = useRef<THREE.Mesh>(null);
-  const dragging = useRef(false);
   const startAngle = useRef(0);
   const startRotation = useRef(0);
   const [hovered, setHovered] = useState(false);
   const [active, setActive] = useState(false);
+  const [dragging, setDragging] = useState(false);
 
   useLayoutEffect(() => {
     const mesh = hitMeshRef.current;
@@ -116,7 +115,7 @@ export function BlueSelectionRing({
     const { angle, inRing } = pointerOnStage(event);
     if (!inRing || angle === null) return false;
 
-    dragging.current = true;
+    setDragging(true);
     setActive(true);
     setHovered(true);
     startAngle.current = angle;
@@ -127,26 +126,20 @@ export function BlueSelectionRing({
   };
 
   useEffect(() => {
-    const onMove = (event: PointerEvent) => {
-      if (dragging.current) {
-        const { angle } = pointerOnStage(event);
-        if (angle === null) return;
-        const delta = angle - startAngle.current;
-        onRotate(normalizeRotation(startRotation.current + delta));
-        return;
-      }
+    if (!dragging) return;
 
-      const { inRing } = pointerOnStage(event);
-      setHovered(inRing);
-      gl.domElement.style.cursor = inRing ? 'grab' : '';
+    const onMove = (event: PointerEvent) => {
+      const { angle } = pointerOnStage(event);
+      if (angle === null) return;
+      const delta = angle - startAngle.current;
+      onRotate(normalizeRotation(startRotation.current + delta));
     };
 
     const onUp = () => {
-      if (!dragging.current) return;
-      dragging.current = false;
+      setDragging(false);
       setActive(false);
       onDragChange(false);
-      gl.domElement.style.cursor = '';
+      gl.domElement.style.cursor = hovered ? 'grab' : '';
     };
 
     window.addEventListener('pointermove', onMove);
@@ -154,13 +147,24 @@ export function BlueSelectionRing({
     return () => {
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
-      gl.domElement.style.cursor = '';
     };
-  }, [camera, gl, raycaster, onRotate, onDragChange, worldPosition, innerRadius, outerRadius, rotation]);
+  }, [
+    dragging,
+    camera,
+    gl,
+    raycaster,
+    hovered,
+    onRotate,
+    onDragChange,
+    worldPosition,
+    innerRadius,
+    outerRadius,
+    rotation,
+  ]);
 
   const onPointerDown = (event: ThreeEvent<PointerEvent>) => {
     event.stopPropagation();
-    if (beginDrag(event.nativeEvent)) return;
+    beginDrag(event.nativeEvent);
   };
 
   const color = active ? BLUE_ACTIVE : hovered ? BLUE_HOVER : BLUE;
@@ -177,10 +181,10 @@ export function BlueSelectionRing({
         onPointerOver={(e) => {
           e.stopPropagation();
           setHovered(true);
-          if (!dragging.current) gl.domElement.style.cursor = 'grab';
+          if (!dragging) gl.domElement.style.cursor = 'grab';
         }}
         onPointerOut={() => {
-          if (!dragging.current) {
+          if (!dragging) {
             setHovered(false);
             gl.domElement.style.cursor = '';
           }

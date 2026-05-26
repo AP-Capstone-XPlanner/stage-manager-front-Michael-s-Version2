@@ -6,6 +6,10 @@ interface PropMeshProps {
   type: PropType;
   color: string;
   ghost?: boolean;
+  wireframe?: boolean;
+  colorOverride?: string;
+  opacity?: number;
+  depthTest?: boolean;
   dimensions?: PropDimensions;
   chairVariant?: ChairVariant;
 }
@@ -14,20 +18,31 @@ function Material({
   ghost,
   color,
   accent,
+  wireframe,
+  opacity,
+  depthTest,
 }: {
   ghost?: boolean;
   color: string;
   accent?: string;
+  wireframe?: boolean;
+  opacity?: number;
+  depthTest?: boolean;
 }) {
   const base = accent ?? color;
+  const matOpacity = opacity ?? (ghost ? 0.45 : 1);
   return (
     <meshStandardMaterial
       color={ghost ? '#60a5fa' : base}
-      transparent={ghost}
-      opacity={ghost ? 0.45 : 1}
-      emissive={ghost ? '#1e3a5f' : '#000000'}
-      emissiveIntensity={ghost ? 0.3 : 0}
+      transparent={ghost || matOpacity < 1}
+      opacity={matOpacity}
+      wireframe={Boolean(wireframe)}
+      emissive={ghost ? '#1e3a5f' : wireframe ? base : '#000000'}
+      emissiveIntensity={ghost ? 0.3 : wireframe ? 0.28 : 0}
       roughness={0.72}
+      depthWrite={!wireframe}
+      depthTest={depthTest ?? true}
+      toneMapped={!wireframe}
     />
   );
 }
@@ -300,15 +315,17 @@ export function PropMesh({
   type,
   color,
   ghost,
+  colorOverride,
   dimensions,
   chairVariant,
 }: PropMeshProps) {
+  const renderColor = colorOverride ?? color;
   switch (type) {
     case 'big_screen':
       return (
         <BigScreen
           ghost={ghost}
-          color={color}
+          color={renderColor}
           dimensions={
             dimensions ?? {
               width: 5,
@@ -322,27 +339,27 @@ export function PropMesh({
       return (
         <BoxProp
           ghost={ghost}
-          color={color}
+          color={renderColor}
           dimensions={
             dimensions ?? { width: 1, height: 1, depth: 1 }
           }
         />
       );
     case 'screen':
-      return <Screen ghost={ghost} color={color} />;
+      return <Screen ghost={ghost} color={renderColor} />;
     case 'table':
-      return <Table ghost={ghost} color={color} />;
+      return <Table ghost={ghost} color={renderColor} />;
     case 'platform':
-      return <Platform ghost={ghost} color={color} />;
+      return <Platform ghost={ghost} color={renderColor} />;
     case 'square':
-      return <Square ghost={ghost} color={color} />;
+      return <Square ghost={ghost} color={renderColor} />;
     case 'circle':
-      return <Circle ghost={ghost} color={color} />;
+      return <Circle ghost={ghost} color={renderColor} />;
     case 'chair':
       return (
-        <Chair ghost={ghost} color={color} variant={chairVariant ?? 'with_back'} />
+        <Chair ghost={ghost} color={renderColor} variant={chairVariant ?? 'with_back'} />
       );
     case 'stairs':
-      return <Stairs ghost={ghost} color={color} />;
+      return <Stairs ghost={ghost} color={renderColor} />;
   }
 }

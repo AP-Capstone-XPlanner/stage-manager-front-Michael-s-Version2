@@ -46,26 +46,42 @@ export const STAGE_SURFACE_COLORS: Record<
   },
 };
 
-/** 1 m area grid lines on deck — contrast tuned per stage material. */
+/** Center cross baseline — fixed cyan (not tied to zone/grid hues). */
+export const CENTER_BASELINE_COLOR = '#38bdf8';
+
+/**
+ * Deck overlays: zone, 1 m grid, and baseline are distinct hues but all
+ * contrast with the stage material body color.
+ */
+export const STAGE_GUIDE_PALETTES: Record<
+  StageTexture,
+  {
+    zone: { line: string; text: string };
+    grid: { line: string; opacity: number; lineWidth: number };
+  }
+> = {
+  dark_wood: {
+    zone: { line: '#f0abfc', text: '#fae8ff' },
+    grid: { line: '#f0d8a8', opacity: 0.82, lineWidth: 1.25 },
+  },
+  light_wood: {
+    zone: { line: '#1d4ed8', text: '#1e3a8a' },
+    grid: { line: '#422006', opacity: 0.7, lineWidth: 1.05 },
+  },
+  matte_black: {
+    zone: { line: '#fbbf24', text: '#fef9c3' },
+    grid: { line: '#b8c9e0', opacity: 0.72, lineWidth: 1.15 },
+  },
+};
+
+/** @deprecated Use STAGE_GUIDE_PALETTES[texture].grid */
 export const STAGE_GRID_LINE_COLORS: Record<
   StageTexture,
   { line: string; opacity: number; lineWidth: number }
 > = {
-  dark_wood: {
-    line: '#f0d8a8',
-    opacity: 0.82,
-    lineWidth: 1.25,
-  },
-  light_wood: {
-    line: '#3d2814',
-    opacity: 0.65,
-    lineWidth: 1,
-  },
-  matte_black: {
-    line: '#b8c9e0',
-    opacity: 0.72,
-    lineWidth: 1.15,
-  },
+  dark_wood: STAGE_GUIDE_PALETTES.dark_wood.grid,
+  light_wood: STAGE_GUIDE_PALETTES.light_wood.grid,
+  matte_black: STAGE_GUIDE_PALETTES.matte_black.grid,
 };
 
 /** Floor grid at y ≈ 0 — stage overlay uses the same spacing. */

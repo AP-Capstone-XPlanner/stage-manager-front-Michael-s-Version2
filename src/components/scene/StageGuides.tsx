@@ -1,42 +1,43 @@
 import { Line } from '@react-three/drei';
+import { CENTER_BASELINE_COLOR } from '../../constants/stage';
 import { useStageStore } from '../../store/stageStore';
+import { getStageHalfExtents } from '../../utils/stageAxes';
 
-const CENTER_LINE_COLOR = '#38bdf8';
-
-/** Center cross baseline — always renders above area grid when enabled. */
+/** Center cross baseline — fixed cyan, always above area grid when enabled. */
 export function StageGuides() {
   const showStageBaseline = useStageStore((s) => s.showStageBaseline);
   const { length, width, height } = useStageStore((s) => s.stage);
 
   if (!showStageBaseline) return null;
 
+  const { halfX, halfZ } = getStageHalfExtents(length, width);
   const y = height + 0.014;
-  const halfLength = length / 2;
-  const halfWidth = width / 2;
 
   return (
     <group renderOrder={10}>
       <Line
         points={[
-          [-halfLength, y, 0],
-          [halfLength, y, 0],
+          [0, y, -halfZ],
+          [0, y, halfZ],
         ]}
-        color={CENTER_LINE_COLOR}
+        color={CENTER_BASELINE_COLOR}
         lineWidth={2}
         transparent
         opacity={0.95}
         depthWrite={false}
+        depthTest={false}
       />
       <Line
         points={[
-          [0, y, -halfWidth],
-          [0, y, halfWidth],
+          [-halfX, y, 0],
+          [halfX, y, 0],
         ]}
-        color={CENTER_LINE_COLOR}
+        color={CENTER_BASELINE_COLOR}
         lineWidth={2}
         transparent
         opacity={0.95}
         depthWrite={false}
+        depthTest={false}
       />
     </group>
   );
