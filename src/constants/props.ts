@@ -7,62 +7,97 @@ export interface PropCatalogItem {
   icon: string;
 }
 
-export const PROP_CATALOG: PropCatalogItem[] = [
+export interface PropCatalogCategory {
+  id: string;
+  label: string;
+  items: PropCatalogItem[];
+}
+
+export const PROP_CATALOG_CATEGORIES: PropCatalogCategory[] = [
   {
-    type: 'big_screen',
-    label: 'Big Screen',
-    description: 'Flat display panel (adjustable width & height)',
-    icon: '🖥️',
+    id: 'living',
+    label: 'Living room & bedroom',
+    items: [
+      {
+        type: 'sofa',
+        label: 'Sofa / couch',
+        description: 'Sectional sofa with cushions',
+        icon: '🛋️',
+      },
+      {
+        type: 'coffee_table',
+        label: 'Coffee table',
+        description: 'Wood coffee table with shelf',
+        icon: '☕',
+      },
+      {
+        type: 'dining_set',
+        label: 'Dining table & chairs',
+        description: 'Table with six pull-out chairs',
+        icon: '🍽️',
+      },
+      {
+        type: 'bed',
+        label: 'Bed frame & mattress',
+        description: 'Timber bed with pillows',
+        icon: '🛏️',
+      },
+      {
+        type: 'wardrobe',
+        label: 'Wardrobe / dresser',
+        description: 'Three-door wardrobe',
+        icon: '🚪',
+      },
+      {
+        type: 'bookshelf',
+        label: 'Bookshelf',
+        description: 'Bookshelf with decor',
+        icon: '📚',
+      },
+      {
+        type: 'nightstand',
+        label: 'Nightstand',
+        description: 'Bedside table with lamp',
+        icon: '🪔',
+      },
+    ],
   },
   {
-    type: 'box',
-    label: 'Box',
-    description: 'Rectangular volume (L × W × H)',
-    icon: '📦',
-  },
-  {
-    type: 'screen',
-    label: 'Monitor',
-    description: 'Smaller display or confidence monitor',
-    icon: '📺',
-  },
-  {
-    type: 'table',
-    label: 'Table',
-    description: 'Stage table or desk',
-    icon: '🧰',
-  },
-  {
-    type: 'platform',
-    label: 'Platform',
-    description: 'Raised platform or riser block',
-    icon: '🟫',
-  },
-  {
-    type: 'square',
-    label: 'Square',
-    description: 'Square zone marker on stage',
-    icon: '⬜',
-  },
-  {
-    type: 'circle',
-    label: 'Circle',
-    description: 'Circular zone marker on stage',
-    icon: '⭕',
-  },
-  {
-    type: 'chair',
-    label: 'Chair',
-    description: 'Seating for performers or crew',
-    icon: '💺',
-  },
-  {
-    type: 'stairs',
-    label: 'Stairs',
-    description: 'Stage access stairs',
-    icon: '🪜',
+    id: 'orchestra',
+    label: 'Orchestra & concert',
+    items: [
+      {
+        type: 'musician_chair',
+        label: 'Musician chair',
+        description: 'Orchestra chair',
+        icon: '💺',
+      },
+      {
+        type: 'conductor_podium',
+        label: "Conductor's podium",
+        description: 'Raised podium with rails',
+        icon: '🎼',
+      },
+      {
+        type: 'music_stand',
+        label: 'Music stand',
+        description: 'Adjustable sheet stand',
+        icon: '🎵',
+      },
+      {
+        type: 'musical_instruments',
+        label: 'Musical instruments',
+        description: 'Saxophone on display stand',
+        icon: '🎷',
+      },
+    ],
   },
 ];
+
+/** Flat list for lookups (selected panel, etc.). */
+export const PROP_CATALOG: PropCatalogItem[] = PROP_CATALOG_CATEGORIES.flatMap(
+  (c) => c.items,
+);
 
 export const GRID_SNAP = 0.25;
 

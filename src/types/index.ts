@@ -1,15 +1,15 @@
 export type PropType =
-  | 'big_screen'
-  | 'screen'
-  | 'table'
-  | 'chair'
-  | 'stairs'
-  | 'platform'
-  | 'square'
-  | 'circle'
-  | 'box';
-
-export type ChairVariant = 'with_back' | 'no_back' | 'low' | 'high';
+  | 'sofa'
+  | 'coffee_table'
+  | 'dining_set'
+  | 'bed'
+  | 'wardrobe'
+  | 'bookshelf'
+  | 'nightstand'
+  | 'musician_chair'
+  | 'conductor_podium'
+  | 'music_stand'
+  | 'musical_instruments';
 
 export type StageTexture = 'dark_wood' | 'light_wood' | 'matte_black';
 
@@ -19,11 +19,10 @@ export interface StageDimensions {
   height: number;
 }
 
-/** Width (X), height (Y), depth (Z) in meters — used by big_screen and box. */
-export interface PropDimensions {
-  width: number;
-  height: number;
-  depth: number;
+/** Wardrobe/nightstand doors; dining_set chair pull-out states. */
+export interface PropInteractionState {
+  open?: boolean;
+  chairsPulled?: boolean[];
 }
 
 export interface PlacedProp {
@@ -37,16 +36,10 @@ export interface PlacedProp {
   visible: boolean;
   /** User label describing how this prop is used (e.g. "Host desk"). */
   tag: string;
-  /** Primary surface color (hex). */
+  /** Legacy tint — catalog models use built-in materials. */
   color: string;
-  /** Custom size for big_screen / box. */
-  dimensions?: PropDimensions;
-  /** Chair style when type is chair. */
-  chairVariant?: ChairVariant;
+  /** Animated parts (doors, drawers, chairs). */
+  interactionState?: PropInteractionState;
 }
 
 export type EditorMode = 'select' | 'place';
-
-export interface PlacementOptions {
-  chairVariant?: ChairVariant;
-}

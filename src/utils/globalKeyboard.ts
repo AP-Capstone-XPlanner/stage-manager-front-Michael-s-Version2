@@ -2,21 +2,43 @@ import { isTextInput } from './keyboard';
 import { KEYBOARD_MOVE_STEP, KEYBOARD_MOVE_STEP_FAST } from './propPosition';
 import { useStageStore } from '../store/stageStore';
 
+const processedEvents = new WeakSet<KeyboardEvent>();
+
 function isEscapeKey(event: KeyboardEvent): boolean {
   return event.key === 'Escape' || event.code === 'Escape';
 }
 
-/** Global keydown handler (attach with capture on `window`). */
+function isDeleteKey(event: KeyboardEvent): boolean {
+  return (
+    event.key === 'Backspace' ||
+    event.code === 'Backspace' ||
+    event.key === 'Delete' ||
+    event.code === 'Delete'
+  );
+}
+
+function isMetaChord(event: KeyboardEvent): boolean {
+  return event.metaKey || event.ctrlKey;
+}
+
+/** Global keydown handler (attach with capture on `window` / `document` / canvas). */
 export function handleGlobalKeyDown(event: KeyboardEvent) {
+  if (processedEvents.has(event)) return;
+  processedEvents.add(event);
+
   if (isEscapeKey(event)) {
     const target = event.target;
-    const wasTextInput = isTextInput(target);
-    if (wasTextInput && target instanceof HTMLElement) {
+    const blurredTextInput =
+      isTextInput(target) && target instanceof HTMLElement;
+    if (blurredTextInput) {
       target.blur();
     }
 
     const handled = useStageStore.getState().handleEscapeKey({
-      fromTextInput: wasTextInput && isTextInput(document.activeElement),
+      // After blur, run placement/deselect on the same Esc when possible.
+      fromTextInput: blurredTextInput
+        ? false
+        : isTextInput(document.activeElement),
     });
     if (handled) {
       event.preventDefault();
@@ -28,6 +50,21 @@ export function handleGlobalKeyDown(event: KeyboardEvent) {
   if (isTextInput(event.target)) return;
 
   const state = useStageStore.getState();
+
+  if (isMetaChord(event)) {
+    const key = event.key.toLowerCase();
+    if (key === 'c' && state.selectedPropId) {
+      event.preventDefault();
+      state.copySelectedProp();
+      return;
+    }
+    if (key === 'v' && state.clipboardDraft) {
+      event.preventDefault();
+      state.pasteProp();
+      return;
+    }
+  }
+
   const { selectedPropId } = state;
   if (!selectedPropId) return;
 
@@ -58,29 +95,24 @@ export function handleGlobalKeyDown(event: KeyboardEvent) {
       event.preventDefault();
       state.moveSelectedPropVertical(-step);
       break;
-    case 'Backspace':
-    case 'Delete':
-      event.preventDefault();
-      state.deleteSelectedProp();
-      break;
-    case 'h':
-    case 'H':
-      event.preventDefault();
-      state.togglePropVisibility();
-      break;
-    case '[':
-      event.preventDefault();
-      state.setSelectedPropScale(
-        (state.props.find((p) => p.id === selectedPropId)?.scale ?? 1) - 0.1,
-      );
-      break;
-    case ']':
-      event.preventDefault();
-      state.setSelectedPropScale(
-        (state.props.find((p) => p.id === selectedPropId)?.scale ?? 1) + 0.1,
-      );
-      break;
     default:
+      if (isDeleteKey(event)) {
+        event.preventDefault();
+        state.deleteSelectedProp();
+      } else if (event.key === 'h' || event.key === 'H') {
+        event.preventDefault();
+        state.togglePropVisibility();
+      } else if (event.key === '[') {
+        event.preventDefault();
+        state.setSelectedPropScale(
+          (state.props.find((p) => p.id === selectedPropId)?.scale ?? 1) - 0.1,
+        );
+      } else if (event.key === ']') {
+        event.preventDefault();
+        state.setSelectedPropScale(
+          (state.props.find((p) => p.id === selectedPropId)?.scale ?? 1) + 0.1,
+        );
+      }
       break;
   }
 }

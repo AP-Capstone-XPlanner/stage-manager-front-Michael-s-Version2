@@ -1,5 +1,6 @@
 import { GRID_SNAP } from '../constants/props';
-import type { PropDimensions, PropType } from '../types';
+import { getPropCatalogSpec } from '../constants/propCatalogSpecs';
+import type { PropType } from '../types';
 import { getPropLocalBottom } from './propBounds';
 import { snapValue } from './snap';
 
@@ -27,14 +28,13 @@ export function clampPropOriginY(
   stageTopY: number,
   type: PropType,
   scale: number,
-  dimensions?: PropDimensions,
 ): number {
   const localBottom = getPropLocalBottom(type);
   const minY = stageTopY - localBottom * scale;
-  let maxY = stageTopY + PROP_MAX_HEIGHT_ABOVE_STAGE - localBottom * scale;
-  if (dimensions) {
-    maxY = stageTopY + PROP_MAX_HEIGHT_ABOVE_STAGE - dimensions.height * scale;
-  }
+  const maxY =
+    stageTopY +
+    PROP_MAX_HEIGHT_ABOVE_STAGE -
+    getPropCatalogSpec(type).height * scale;
   return Math.max(minY, Math.min(maxY, y));
 }
 
@@ -46,7 +46,7 @@ export function normalizePropPosition(
   halfZ: number,
   snapToGrid: boolean,
   stageTopY: number,
-  prop?: { type: PropType; scale: number; dimensions?: PropDimensions },
+  prop?: { type: PropType; scale: number },
   snapStep: number = GRID_SNAP,
 ): [number, number, number] {
   let nx = snapValue(x, snapToGrid, snapStep);
@@ -54,13 +54,7 @@ export function normalizePropPosition(
   let nz = snapValue(z, snapToGrid, snapStep);
   const clamped = clampPropXZ(nx, nz, halfX, halfZ);
   if (prop) {
-    ny = clampPropOriginY(
-      ny,
-      stageTopY,
-      prop.type,
-      prop.scale,
-      prop.dimensions,
-    );
+    ny = clampPropOriginY(ny, stageTopY, prop.type, prop.scale);
   } else {
     ny = Math.max(
       stageTopY,

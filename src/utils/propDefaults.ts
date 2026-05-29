@@ -1,28 +1,37 @@
 import { PROP_SCALE_LIMITS } from '../constants/props';
-import { getDefaultPropDimensions } from '../constants/propDimensions';
+import { getDefaultPropInteractionState } from '../constants/propCatalogSpecs';
 import { getDefaultPropColor } from '../constants/propColors';
 import { normalizeHexColor } from './color';
 import type { PlacedProp } from '../types';
 
 export type NewPlacedProp = Pick<PlacedProp, 'type' | 'position' | 'rotation'> &
   Partial<
-    Pick<
-      PlacedProp,
-      'scale' | 'visible' | 'tag' | 'color' | 'dimensions' | 'chairVariant'
-    >
+    Pick<PlacedProp, 'scale' | 'visible' | 'tag' | 'color' | 'interactionState'>
   >;
+
+/** Pre-fill for placement (copy) — position comes from the stage click. */
+export type PlacementDraft = Omit<NewPlacedProp, 'position'>;
+
+export function propToPlacementDraft(prop: PlacedProp): PlacementDraft {
+  return {
+    type: prop.type,
+    rotation: prop.rotation,
+    scale: prop.scale,
+    visible: prop.visible,
+    color: prop.color,
+    ...(prop.interactionState
+      ? { interactionState: structuredClone(prop.interactionState) }
+      : {}),
+  };
+}
 
 export const DEFAULT_PROP_SCALE = PROP_SCALE_LIMITS.default;
 
 export function createNewProp(
   partial: NewPlacedProp,
 ): Omit<PlacedProp, 'id'> {
-  const chairVariant =
-    partial.type === 'chair'
-      ? (partial.chairVariant ?? 'with_back')
-      : partial.chairVariant;
-  const dimensions =
-    partial.dimensions ?? getDefaultPropDimensions(partial.type, chairVariant);
+  const interactionState =
+    partial.interactionState ?? getDefaultPropInteractionState(partial.type);
 
   return {
     type: partial.type,
@@ -34,8 +43,7 @@ export function createNewProp(
     color: partial.color
       ? normalizeHexColor(partial.color, getDefaultPropColor(partial.type))
       : getDefaultPropColor(partial.type),
-    ...(dimensions ? { dimensions } : {}),
-    ...(chairVariant ? { chairVariant } : {}),
+    ...(interactionState ? { interactionState } : {}),
   };
 }
 

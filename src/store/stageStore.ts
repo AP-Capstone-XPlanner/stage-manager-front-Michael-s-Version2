@@ -1,10 +1,7 @@
 import { create } from 'zustand';
 import type {
-  ChairVariant,
   EditorMode,
   PlacedProp,
-  PlacementOptions,
-  PropDimensions,
   PropType,
   StageDimensions,
   StageTexture,
@@ -14,14 +11,11 @@ import {
   DEFAULT_SHOW_STAGE_BASELINE,
   DEFAULT_SKY_COLOR,
   DEFAULT_STAGE_TEXTURE,
+  DEFAULT_STAGE_ENCLOSURE_COLOR,
+  STAGE_ENCLOSURE_HEIGHT_LIMITS,
+  STAGE_ENCLOSURE_OPACITY_LIMITS,
 } from '../constants/stage';
-import {
-  clampBigScreenDimension,
-  clampBoxDimension,
-  getDefaultPropDimensions,
-  resolvePropDimensions,
-  usesCustomDimensions,
-} from '../constants/propDimensions';
+import { propSupportsToggleInteraction } from '../constants/propCatalogSpecs';
 import { getDefaultPropColor } from '../constants/propColors';
 import { normalizeHexColor } from '../utils/color';
 import { createNewProp, clampPropScale } from '../utils/propDefaults';
@@ -33,8 +27,16 @@ import {
   normalizeRotation,
   POSITION_PANEL_SNAP,
 } from '../utils/propPosition';
-import type { NewPlacedProp } from '../utils/propDefaults';
+import {
+  propToPlacementDraft,
+  type NewPlacedProp,
+  type PlacementDraft,
+} from '../utils/propDefaults';
 import { getStageHalfExtents } from '../utils/stageAxes';
+import {
+  clampStageEnclosureHeight,
+  clampStageEnclosureOpacity,
+} from '../utils/stageEnclosure';
 
 interface StageState {
   stage: StageDimensions;
@@ -45,12 +47,19 @@ interface StageState {
   selectedPropId: string | null;
   positioningMode: boolean;
   placementType: PropType | null;
-  placementChairVariant: ChairVariant | null;
+  /** When set, the next placement uses these props instead of catalog defaults. */
+  placementDraft: PlacementDraft | null;
+  /** Last copied prop — survives Esc cancel so ⌘V can paste again. */
+  clipboardDraft: PlacementDraft | null;
   mode: EditorMode;
   snapToGrid: boolean;
   showStageBaseline: boolean;
   showStageAreaGrid: boolean;
   showStageZones: boolean;
+  showStageEnclosure: boolean;
+  stageEnclosureHeight: number;
+  stageEnclosureColor: string;
+  stageEnclosureOpacity: number;
 
   setStageDimension: (key: keyof StageDimensions, value: number) => void;
   setStage: (stage: Partial<StageDimensions>) => void;
@@ -60,8 +69,14 @@ interface StageState {
   setShowStageBaseline: (show: boolean) => void;
   setShowStageAreaGrid: (show: boolean) => void;
   setShowStageZones: (show: boolean) => void;
-  startPlacement: (type: PropType, options?: PlacementOptions) => void;
+  setShowStageEnclosure: (show: boolean) => void;
+  setStageEnclosureHeight: (height: number) => void;
+  setStageEnclosureColor: (color: string) => void;
+  setStageEnclosureOpacity: (opacity: number) => void;
+  startPlacement: (type: PropType, draft?: PlacementDraft | null) => void;
   cancelPlacement: () => void;
+  copySelectedProp: () => void;
+  pasteProp: () => void;
   setMode: (mode: EditorMode) => void;
   addProp: (prop: NewPlacedProp) => void;
   updateProp: (id: string, patch: Partial<PlacedProp>) => void;
@@ -86,10 +101,8 @@ interface StageState {
   togglePropVisibility: (id?: string) => void;
   setSelectedPropTag: (tag: string) => void;
   setSelectedPropColor: (color: string) => void;
-  setSelectedPropDimension: (
-    key: keyof PropDimensions,
-    value: number,
-  ) => void;
+  togglePropInteraction: (id: string) => void;
+  toggleDiningChair: (id: string, chairIndex: number) => void;
   toggleSnap: () => void;
   clearAllProps: () => void;
 }
@@ -109,12 +122,17 @@ export const useStageStore = create<StageState>((set, get) => ({
   selectedPropId: null,
   positioningMode: false,
   placementType: null,
-  placementChairVariant: null,
+  placementDraft: null,
+  clipboardDraft: null,
   mode: 'select',
   snapToGrid: true,
   showStageBaseline: DEFAULT_SHOW_STAGE_BASELINE,
   showStageAreaGrid: false,
   showStageZones: false,
+  showStageEnclosure: false,
+  stageEnclosureHeight: STAGE_ENCLOSURE_HEIGHT_LIMITS.default,
+  stageEnclosureColor: DEFAULT_STAGE_ENCLOSURE_COLOR,
+  stageEnclosureOpacity: STAGE_ENCLOSURE_OPACITY_LIMITS.default,
 
   setStageDimension: (key, value) =>
     set((s) => {
@@ -147,23 +165,68 @@ export const useStageStore = create<StageState>((set, get) => ({
 
   setShowStageZones: (show) => set({ showStageZones: show }),
 
-  startPlacement: (type, options) =>
+  setShowStageEnclosure: (show) => set({ showStageEnclosure: show }),
+
+  setStageEnclosureHeight: (height) =>
+    set({ stageEnclosureHeight: clampStageEnclosureHeight(height) }),
+
+  setStageEnclosureColor: (color) =>
+    set({
+      stageEnclosureColor: normalizeHexColor(
+        color,
+        DEFAULT_STAGE_ENCLOSURE_COLOR,
+      ),
+    }),
+
+  setStageEnclosureOpacity: (opacity) =>
+    set({ stageEnclosureOpacity: clampStageEnclosureOpacity(opacity) }),
+
+  startPlacement: (type, draft) =>
     set({
       placementType: type,
-      placementChairVariant:
-        options?.chairVariant ?? (type === 'chair' ? 'with_back' : null),
+      placementDraft: draft ?? null,
       mode: 'place',
       selectedPropId: null,
       positioningMode: false,
     }),
 
   cancelPlacement: () =>
-    set({ placementType: null, placementChairVariant: null, mode: 'select' }),
+    set({ placementType: null, placementDraft: null, mode: 'select' }),
+
+  copySelectedProp: () => {
+    const { selectedPropId, props } = get();
+    if (!selectedPropId) return;
+    const prop = props.find((p) => p.id === selectedPropId);
+    if (!prop) return;
+    const draft = propToPlacementDraft(prop);
+    set({
+      clipboardDraft: draft,
+      placementType: prop.type,
+      placementDraft: draft,
+      mode: 'place',
+      selectedPropId: null,
+      positioningMode: false,
+    });
+  },
+
+  pasteProp: () => {
+    const { clipboardDraft } = get();
+    if (!clipboardDraft) return;
+    const draft = structuredClone(clipboardDraft);
+    set({
+      placementType: draft.type,
+      placementDraft: draft,
+      mode: 'place',
+      selectedPropId: null,
+      positioningMode: false,
+    });
+  },
 
   setMode: (mode) =>
     set((s) => ({
       mode,
       placementType: mode === 'select' ? null : s.placementType,
+      placementDraft: mode === 'select' ? null : s.placementDraft,
     })),
 
   addProp: (prop) =>
@@ -173,7 +236,7 @@ export const useStageStore = create<StageState>((set, get) => ({
         props: [...s.props, { ...createNewProp(prop), id }],
         mode: 'select',
         placementType: null,
-        placementChairVariant: null,
+        placementDraft: null,
         selectedPropId: id,
         positioningMode: false,
       };
@@ -200,7 +263,7 @@ export const useStageStore = create<StageState>((set, get) => ({
           positioningMode: false,
           mode: 'select',
           placementType: null,
-          placementChairVariant: null,
+          placementDraft: null,
         };
       }
       if (s.selectedPropId === id) {
@@ -218,7 +281,7 @@ export const useStageStore = create<StageState>((set, get) => ({
         positioningMode: false,
         mode: 'select',
         placementType: null,
-        placementChairVariant: null,
+        placementDraft: null,
       };
     }),
 
@@ -256,11 +319,31 @@ export const useStageStore = create<StageState>((set, get) => ({
         positioningMode: false,
         mode: 'select',
         placementType: null,
-        placementChairVariant: null,
+        placementDraft: null,
       });
       return true;
     }
     return false;
+  },
+
+  togglePropInteraction: (id) => {
+    const prop = get().props.find((p) => p.id === id);
+    if (!prop || !propSupportsToggleInteraction(prop.type)) return;
+    const open = !(prop.interactionState?.open ?? false);
+    get().updateProp(id, {
+      interactionState: { ...prop.interactionState, open },
+    });
+  },
+
+  toggleDiningChair: (id, chairIndex) => {
+    const prop = get().props.find((p) => p.id === id);
+    if (!prop || prop.type !== 'dining_set') return;
+    const pulled = [...(prop.interactionState?.chairsPulled ?? Array(6).fill(false))];
+    if (chairIndex < 0 || chairIndex >= pulled.length) return;
+    pulled[chairIndex] = !pulled[chairIndex];
+    get().updateProp(id, {
+      interactionState: { ...prop.interactionState, chairsPulled: pulled },
+    });
   },
 
   rotateSelected: (deltaRadians) => {
@@ -280,7 +363,8 @@ export const useStageStore = create<StageState>((set, get) => ({
   },
 
   moveSelectedProp: (dx, dz) => {
-    const { selectedPropId, props, stage, snapToGrid, updateProp } = get();
+    const { selectedPropId, props, stage, snapToGrid, positioningMode, updateProp } =
+      get();
     if (!selectedPropId) return;
     const prop = props.find((p) => p.id === selectedPropId);
     if (!prop) return;
@@ -291,7 +375,7 @@ export const useStageStore = create<StageState>((set, get) => ({
       prop.position[2] + dz,
       halfX,
       halfZ,
-      snapToGrid,
+      snapToGrid && !positioningMode,
       stage.height,
       prop,
     );
@@ -299,7 +383,8 @@ export const useStageStore = create<StageState>((set, get) => ({
   },
 
   moveSelectedPropVertical: (dy) => {
-    const { selectedPropId, props, stage, snapToGrid, updateProp } = get();
+    const { selectedPropId, props, stage, snapToGrid, positioningMode, updateProp } =
+      get();
     if (!selectedPropId) return;
     const prop = props.find((p) => p.id === selectedPropId);
     if (!prop) return;
@@ -309,7 +394,7 @@ export const useStageStore = create<StageState>((set, get) => ({
       prop.position[2],
       stage.width / 2,
       stage.length / 2,
-      snapToGrid,
+      snapToGrid && !positioningMode,
       stage.height,
       prop,
     );
@@ -317,7 +402,8 @@ export const useStageStore = create<StageState>((set, get) => ({
   },
 
   setSelectedPropPosition: (x, z, y, options) => {
-    const { selectedPropId, props, stage, snapToGrid, updateProp } = get();
+    const { selectedPropId, props, stage, snapToGrid, positioningMode, updateProp } =
+      get();
     if (!selectedPropId) return;
     const prop = props.find((p) => p.id === selectedPropId);
     if (!prop) return;
@@ -328,7 +414,7 @@ export const useStageStore = create<StageState>((set, get) => ({
       z,
       stage.width / 2,
       stage.length / 2,
-      fine || snapToGrid,
+      fine || (snapToGrid && !positioningMode),
       stage.height,
       prop,
       fine ? POSITION_PANEL_SNAP : undefined,
@@ -342,7 +428,8 @@ export const useStageStore = create<StageState>((set, get) => ({
   },
 
   setSelectedPropScale: (scale) => {
-    const { selectedPropId, props, stage, snapToGrid, updateProp } = get();
+    const { selectedPropId, props, stage, snapToGrid, positioningMode, updateProp } =
+      get();
     if (!selectedPropId) return;
     const prop = props.find((p) => p.id === selectedPropId);
     if (!prop) return;
@@ -353,7 +440,7 @@ export const useStageStore = create<StageState>((set, get) => ({
       prop.position[2],
       stage.width / 2,
       stage.length / 2,
-      snapToGrid,
+      snapToGrid && !positioningMode,
       stage.height,
       { ...prop, scale: nextScale },
     );
@@ -384,46 +471,6 @@ export const useStageStore = create<StageState>((set, get) => ({
     updateProp(selectedPropId, {
       color: normalizeHexColor(color, getDefaultPropColor(prop.type)),
     });
-  },
-
-  setSelectedPropDimension: (key, value) => {
-    const { selectedPropId, props, stage, snapToGrid, updateProp } = get();
-    if (!selectedPropId) return;
-    const prop = props.find((p) => p.id === selectedPropId);
-    if (!prop || !usesCustomDimensions(prop.type)) return;
-
-    const current =
-      resolvePropDimensions(prop) ??
-      getDefaultPropDimensions(prop.type, prop.chairVariant)!;
-
-    let next: PropDimensions;
-    if (prop.type === 'big_screen') {
-      next = {
-        ...current,
-        [key]:
-          key === 'depth'
-            ? current.depth
-            : clampBigScreenDimension(key as 'width' | 'height', value),
-        depth: current.depth,
-      };
-    } else {
-      next = {
-        ...current,
-        [key]: clampBoxDimension(key, value),
-      };
-    }
-
-    const position = normalizePropPosition(
-      prop.position[0],
-      prop.position[1],
-      prop.position[2],
-      stage.width / 2,
-      stage.length / 2,
-      snapToGrid,
-      stage.height,
-      { ...prop, dimensions: next },
-    );
-    updateProp(selectedPropId, { dimensions: next, position });
   },
 
   toggleSnap: () => set((s) => ({ snapToGrid: !s.snapToGrid })),

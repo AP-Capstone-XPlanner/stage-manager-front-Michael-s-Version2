@@ -58,6 +58,8 @@ export function BlueSelectionRing({
   outerRadius,
   onRotate,
   onDragChange,
+  disabled = false,
+  canStartDrag,
 }: {
   worldPosition: [number, number, number];
   rotation: number;
@@ -65,6 +67,10 @@ export function BlueSelectionRing({
   outerRadius: number;
   onRotate: (rotation: number) => void;
   onDragChange: (dragging: boolean) => void;
+  /** Gizmo is dragging — ignore ring hits. */
+  disabled?: boolean;
+  /** Sync guard so ring and translate arrows never arm together. */
+  canStartDrag?: () => boolean;
 }) {
   const { camera, gl, raycaster } = useThree();
   const hitMeshRef = useRef<THREE.Mesh>(null);
@@ -112,6 +118,7 @@ export function BlueSelectionRing({
   };
 
   const beginDrag = (event: PointerEvent) => {
+    if (disabled || canStartDrag?.() === false) return false;
     const { angle, inRing } = pointerOnStage(event);
     if (!inRing || angle === null) return false;
 
@@ -124,6 +131,16 @@ export function BlueSelectionRing({
     gl.domElement.style.cursor = 'grabbing';
     return true;
   };
+
+  useEffect(() => {
+    if (disabled && dragging) {
+      setDragging(false);
+      setActive(false);
+      setHovered(false);
+      onDragChange(false);
+      gl.domElement.style.cursor = '';
+    }
+  }, [disabled, dragging, onDragChange, gl]);
 
   useEffect(() => {
     if (!dragging) return;
@@ -163,8 +180,9 @@ export function BlueSelectionRing({
   ]);
 
   const onPointerDown = (event: ThreeEvent<PointerEvent>) => {
+    if (disabled) return;
+    if (!beginDrag(event.nativeEvent)) return;
     event.stopPropagation();
-    beginDrag(event.nativeEvent);
   };
 
   const color = active ? BLUE_ACTIVE : hovered ? BLUE_HOVER : BLUE;
@@ -179,15 +197,15 @@ export function BlueSelectionRing({
         renderOrder={12}
         onPointerDown={onPointerDown}
         onPointerOver={(e) => {
+          if (disabled) return;
           e.stopPropagation();
           setHovered(true);
           if (!dragging) gl.domElement.style.cursor = 'grab';
         }}
         onPointerOut={() => {
-          if (!dragging) {
-            setHovered(false);
-            gl.domElement.style.cursor = '';
-          }
+          if (disabled || dragging) return;
+          setHovered(false);
+          gl.domElement.style.cursor = '';
         }}
       >
         <ringGeometry args={[innerRadius, outerRadius, 64]} />

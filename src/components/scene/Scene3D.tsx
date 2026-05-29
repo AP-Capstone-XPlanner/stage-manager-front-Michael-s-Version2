@@ -13,6 +13,9 @@ import { StageGuides } from './StageGuides';
 import { StagePlatform } from './StagePlatform';
 import { DefaultCamera } from './DefaultCamera';
 import { StageZoneGuides } from './StageZoneGuides';
+import { StageEnclosure } from './StageEnclosure';
+import { KeyboardShortcutsBridge } from './KeyboardShortcutsBridge';
+import { handleGlobalKeyDown } from '../../utils/globalKeyboard';
 
 function SceneContent() {
   const controlsRef = useRef<OrbitControlsImpl>(null);
@@ -26,6 +29,7 @@ function SceneContent() {
   return (
     <>
       <DefaultCamera />
+      <KeyboardShortcutsBridge />
       <SceneBackground />
       <ambientLight intensity={0.55} />
       <hemisphereLight args={['#b8c9e0', '#2a2d38', 0.45]} />
@@ -56,6 +60,7 @@ function SceneContent() {
       <StageGuides />
       <PlacedProps />
       <StageZoneGuides />
+      <StageEnclosure />
       <PlacementController />
       <OrbitControls
         ref={controlsRef}
@@ -81,6 +86,7 @@ export function Scene3D() {
       camera={{ position: [2, 8, 18], fov: 45, near: 0.1, far: 200 }}
       gl={{ antialias: true }}
       onPointerDown={(e) => e.currentTarget.focus()}
+      onKeyDown={(e) => handleGlobalKeyDown(e.nativeEvent)}
       onCreated={({ gl }) => {
         gl.toneMappingExposure = 1.05;
       }}

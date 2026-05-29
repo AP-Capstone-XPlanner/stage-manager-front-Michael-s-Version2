@@ -13,6 +13,19 @@ export const DEFAULT_GROUND_COLOR = '#ffffff';
 export const DEFAULT_STAGE_TEXTURE: StageTexture = 'dark_wood';
 export const DEFAULT_SHOW_STAGE_BASELINE = true;
 
+/** U/S/L walls only (no downstage / audience side). */
+export const STAGE_ENCLOSURE_HEIGHT_LIMITS = {
+  min: 0.5,
+  max: 15,
+  default: 4,
+} as const;
+
+export const STAGE_ENCLOSURE_OPACITY_LIMITS = {
+  min: 0.05,
+  max: 1,
+  default: 0.22,
+} as const;
+
 export const STAGE_TEXTURE_OPTIONS: {
   id: StageTexture;
   label: string;
@@ -58,21 +71,28 @@ export const STAGE_GUIDE_PALETTES: Record<
   {
     zone: { line: string; text: string };
     grid: { line: string; opacity: number; lineWidth: number };
+    enclosure: { fill: string; edge: string; opacity: number };
   }
 > = {
   dark_wood: {
     zone: { line: '#f0abfc', text: '#fae8ff' },
     grid: { line: '#f0d8a8', opacity: 0.82, lineWidth: 1.25 },
+    enclosure: { fill: '#c4b5fd', edge: '#ede9fe', opacity: 0.22 },
   },
   light_wood: {
     zone: { line: '#1d4ed8', text: '#1e3a8a' },
     grid: { line: '#422006', opacity: 0.7, lineWidth: 1.05 },
+    enclosure: { fill: '#2563eb', edge: '#1e3a8a', opacity: 0.18 },
   },
   matte_black: {
     zone: { line: '#fbbf24', text: '#fef9c3' },
     grid: { line: '#b8c9e0', opacity: 0.72, lineWidth: 1.15 },
+    enclosure: { fill: '#fcd34d', edge: '#fef08a', opacity: 0.2 },
   },
 };
+
+export const DEFAULT_STAGE_ENCLOSURE_COLOR =
+  STAGE_GUIDE_PALETTES.dark_wood.enclosure.fill;
 
 /** @deprecated Use STAGE_GUIDE_PALETTES[texture].grid */
 export const STAGE_GRID_LINE_COLORS: Record<

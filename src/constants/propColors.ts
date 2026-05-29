@@ -1,15 +1,17 @@
 import type { PropType } from '../types';
 
 export const DEFAULT_PROP_COLORS: Record<PropType, string> = {
-  big_screen: '#334155',
-  screen: '#475569',
-  table: '#78716c',
-  chair: '#78716c',
-  stairs: '#64748b',
-  platform: '#57534e',
-  square: '#0ea5e9',
-  circle: '#8b5cf6',
-  box: '#64748b',
+  sofa: '#8f6f33',
+  coffee_table: '#d2b48c',
+  dining_set: '#d2b48c',
+  bed: '#c6a072',
+  wardrobe: '#8d6e63',
+  bookshelf: '#6d4c41',
+  nightstand: '#fcfdfd',
+  musician_chair: '#1a1a1a',
+  conductor_podium: '#333333',
+  music_stand: '#202020',
+  musical_instruments: '#deb941',
 };
 
 /** Preset swatches for prop color (selected panel + future pickers). */
