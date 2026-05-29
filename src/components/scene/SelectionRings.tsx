@@ -8,6 +8,7 @@ const intersection = new THREE.Vector3();
 const center = new THREE.Vector3();
 const pointer = new THREE.Vector2();
 const worldPos = new THREE.Vector3();
+const hitPoint = new THREE.Vector3();
 
 const BLUE = '#38bdf8';
 const BLUE_HOVER = '#7dd3fc';
@@ -26,7 +27,6 @@ function createRingRaycast(
   padOuter: number,
 ) {
   const hitPlane = new THREE.Plane();
-  const hitPoint = new THREE.Vector3();
   const inner = innerRadius - padInner;
   const outer = outerRadius + padOuter;
 
@@ -42,10 +42,9 @@ function createRingRaycast(
     const dist = Math.hypot(hitPoint.x - worldPos.x, hitPoint.z - worldPos.z);
     if (dist < inner || dist > outer) return;
 
-    const distance = raycaster.ray.origin.distanceTo(hitPoint);
     intersects.push({
-      distance,
-      point: hitPoint.clone(),
+      distance: raycaster.ray.origin.distanceTo(hitPoint),
+      point: hitPoint,
       object: this,
     });
   };
@@ -59,6 +58,8 @@ export function BlueSelectionRing({
   outerRadius,
   onRotate,
   onDragChange,
+  disabled = false,
+  canStartDrag,
 }: {
   worldPosition: [number, number, number];
   rotation: number;
@@ -66,14 +67,18 @@ export function BlueSelectionRing({
   outerRadius: number;
   onRotate: (rotation: number) => void;
   onDragChange: (dragging: boolean) => void;
+  /** Gizmo is dragging — ignore ring hits. */
+  disabled?: boolean;
+  /** Sync guard so ring and translate arrows never arm together. */
+  canStartDrag?: () => boolean;
 }) {
   const { camera, gl, raycaster } = useThree();
   const hitMeshRef = useRef<THREE.Mesh>(null);
-  const dragging = useRef(false);
   const startAngle = useRef(0);
   const startRotation = useRef(0);
   const [hovered, setHovered] = useState(false);
   const [active, setActive] = useState(false);
+  const [dragging, setDragging] = useState(false);
 
   useLayoutEffect(() => {
     const mesh = hitMeshRef.current;
@@ -113,10 +118,11 @@ export function BlueSelectionRing({
   };
 
   const beginDrag = (event: PointerEvent) => {
+    if (disabled || canStartDrag?.() === false) return false;
     const { angle, inRing } = pointerOnStage(event);
     if (!inRing || angle === null) return false;
 
-    dragging.current = true;
+    setDragging(true);
     setActive(true);
     setHovered(true);
     startAngle.current = angle;
@@ -127,26 +133,30 @@ export function BlueSelectionRing({
   };
 
   useEffect(() => {
-    const onMove = (event: PointerEvent) => {
-      if (dragging.current) {
-        const { angle } = pointerOnStage(event);
-        if (angle === null) return;
-        const delta = angle - startAngle.current;
-        onRotate(normalizeRotation(startRotation.current + delta));
-        return;
-      }
+    if (disabled && dragging) {
+      setDragging(false);
+      setActive(false);
+      setHovered(false);
+      onDragChange(false);
+      gl.domElement.style.cursor = '';
+    }
+  }, [disabled, dragging, onDragChange, gl]);
 
-      const { inRing } = pointerOnStage(event);
-      setHovered(inRing);
-      gl.domElement.style.cursor = inRing ? 'grab' : '';
+  useEffect(() => {
+    if (!dragging) return;
+
+    const onMove = (event: PointerEvent) => {
+      const { angle } = pointerOnStage(event);
+      if (angle === null) return;
+      const delta = angle - startAngle.current;
+      onRotate(normalizeRotation(startRotation.current + delta));
     };
 
     const onUp = () => {
-      if (!dragging.current) return;
-      dragging.current = false;
+      setDragging(false);
       setActive(false);
       onDragChange(false);
-      gl.domElement.style.cursor = '';
+      gl.domElement.style.cursor = hovered ? 'grab' : '';
     };
 
     window.addEventListener('pointermove', onMove);
@@ -154,13 +164,25 @@ export function BlueSelectionRing({
     return () => {
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
-      gl.domElement.style.cursor = '';
     };
-  }, [camera, gl, raycaster, onRotate, onDragChange, worldPosition, innerRadius, outerRadius, rotation]);
+  }, [
+    dragging,
+    camera,
+    gl,
+    raycaster,
+    hovered,
+    onRotate,
+    onDragChange,
+    worldPosition,
+    innerRadius,
+    outerRadius,
+    rotation,
+  ]);
 
   const onPointerDown = (event: ThreeEvent<PointerEvent>) => {
+    if (disabled) return;
+    if (!beginDrag(event.nativeEvent)) return;
     event.stopPropagation();
-    if (beginDrag(event.nativeEvent)) return;
   };
 
   const color = active ? BLUE_ACTIVE : hovered ? BLUE_HOVER : BLUE;
@@ -175,15 +197,15 @@ export function BlueSelectionRing({
         renderOrder={12}
         onPointerDown={onPointerDown}
         onPointerOver={(e) => {
+          if (disabled) return;
           e.stopPropagation();
           setHovered(true);
-          if (!dragging.current) gl.domElement.style.cursor = 'grab';
+          if (!dragging) gl.domElement.style.cursor = 'grab';
         }}
         onPointerOut={() => {
-          if (!dragging.current) {
-            setHovered(false);
-            gl.domElement.style.cursor = '';
-          }
+          if (disabled || dragging) return;
+          setHovered(false);
+          gl.domElement.style.cursor = '';
         }}
       >
         <ringGeometry args={[innerRadius, outerRadius, 64]} />

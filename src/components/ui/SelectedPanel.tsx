@@ -1,22 +1,12 @@
-import {
-  PROP_CATALOG,
-  PROP_SCALE_LIMITS,
-  PROP_TAG_MAX_LENGTH,
-} from '../../constants/props';
-import {
-  usesCustomDimensions,
-  resolvePropDimensions,
-} from '../../constants/propDimensions';
+import { PROP_CATALOG, PROP_SCALE_LIMITS, PROP_TAG_MAX_LENGTH } from '../../constants/props';
+import { getPropCatalogSpec } from '../../constants/propCatalogSpecs';
 import { useStageStore } from '../../store/stageStore';
 import {
   heightAboveStage,
   PROP_MAX_HEIGHT_ABOVE_STAGE,
   rotationDisplayDegrees,
 } from '../../utils/propPosition';
-import { ChairVariantPicker } from './ChairVariantPicker';
 import { DimensionControl } from './DimensionControl';
-import { PropColorPicker } from './PropColorPicker';
-import { PropDimensionsEditor } from './PropDimensionsEditor';
 import { PositionNumberInput } from './PositionNumberInput';
 
 export function SelectedPanel() {
@@ -30,16 +20,15 @@ export function SelectedPanel() {
   const setSelectedPropPosition = useStageStore((s) => s.setSelectedPropPosition);
   const deleteSelectedProp = useStageStore((s) => s.deleteSelectedProp);
   const setSelectedPropScale = useStageStore((s) => s.setSelectedPropScale);
-  const setSelectedPropDimension = useStageStore((s) => s.setSelectedPropDimension);
   const togglePropVisibility = useStageStore((s) => s.togglePropVisibility);
   const setSelectedPropTag = useStageStore((s) => s.setSelectedPropTag);
-  const setSelectedPropColor = useStageStore((s) => s.setSelectedPropColor);
-  const updateProp = useStageStore((s) => s.updateProp);
+  const copySelectedProp = useStageStore((s) => s.copySelectedProp);
 
   const selectedProp = props.find((p) => p.id === selectedPropId);
   const open = Boolean(selectedProp);
-  const selectedUsesDims =
-    selectedProp && usesCustomDimensions(selectedProp.type);
+  const dims = selectedProp ? getPropCatalogSpec(selectedProp.type) : null;
+  const typeLabel =
+    selectedProp && PROP_CATALOG.find((p) => p.type === selectedProp.type)?.label;
 
   return (
     <div
@@ -57,16 +46,23 @@ export function SelectedPanel() {
                     <span className="selected-panel-tag-label">Tag</span>
                     <input
                       type="text"
-                      placeholder="Usage note"
+                      placeholder="Label"
                       value={selectedProp.tag}
                       maxLength={PROP_TAG_MAX_LENGTH}
                       onChange={(e) => setSelectedPropTag(e.target.value)}
                     />
                   </label>
                 </div>
-                <p className="selected-panel-subtitle">
-                  {PROP_CATALOG.find((p) => p.type === selectedProp.type)?.label}
-                </p>
+                <div className="selected-panel-meta">
+                  {typeLabel && (
+                    <p className="selected-panel-subtitle">{typeLabel}</p>
+                  )}
+                  {dims && (
+                    <span className="selected-panel-dims-badge">
+                      {dims.width}×{dims.height}×{dims.depth} m
+                    </span>
+                  )}
+                </div>
               </div>
               <div className="selected-panel-actions">
                 <button
@@ -79,6 +75,14 @@ export function SelectedPanel() {
                 <button
                   type="button"
                   className="btn btn-compact secondary"
+                  onClick={() => copySelectedProp()}
+                  title="⌘C"
+                >
+                  Copy
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-compact secondary"
                   onClick={() => selectProp(null)}
                 >
                   取消选中
@@ -86,26 +90,6 @@ export function SelectedPanel() {
               </div>
             </div>
             <div className="selected-panel-body">
-              {positioningMode && (
-                <p className="panel-hint positioning-hint">
-                  Gizmo + 蓝色圆环 — Esc 退出 Positioning，再次 Esc 取消选中
-                </p>
-              )}
-              {selectedProp.type === 'chair' && (
-                <ChairVariantPicker
-                  value={selectedProp.chairVariant ?? 'with_back'}
-                  onChange={(variant) =>
-                    updateProp(selectedProp.id, { chairVariant: variant })
-                  }
-                />
-              )}
-              <PropColorPicker
-                compact
-                color={selectedProp.color}
-                propType={selectedProp.type}
-                onChange={setSelectedPropColor}
-              />
-              <div className="selected-panel-section-divider" aria-hidden />
               <section className="selected-panel-section">
                 <span className="selected-panel-section-title">Position</span>
                 <div className="selected-panel-position-row">
@@ -159,14 +143,14 @@ export function SelectedPanel() {
                   <div className="position-rotate-btns">
                     <button
                       type="button"
-                      className="btn btn-compact"
+                      className="btn btn-compact secondary"
                       onClick={() => rotateSelected(-Math.PI / 4)}
                     >
                       −45°
                     </button>
                     <button
                       type="button"
-                      className="btn btn-compact"
+                      className="btn btn-compact secondary"
                       onClick={() => rotateSelected(Math.PI / 4)}
                     >
                       +45°
@@ -175,28 +159,16 @@ export function SelectedPanel() {
                 </div>
               </section>
               <div className="selected-panel-size-row">
-                {selectedUsesDims ? (
-                  <PropDimensionsEditor
-                    slim={selectedProp.type === 'box'}
-                    compact={selectedProp.type === 'big_screen'}
-                    prop={{
-                      ...selectedProp,
-                      dimensions: resolvePropDimensions(selectedProp)!,
-                    }}
-                    onChange={setSelectedPropDimension}
-                  />
-                ) : (
-                  <DimensionControl
-                    slim
-                    label="Size"
-                    value={selectedProp.scale}
-                    min={PROP_SCALE_LIMITS.min}
-                    max={PROP_SCALE_LIMITS.max}
-                    step={PROP_SCALE_LIMITS.step}
-                    unit="×"
-                    onChange={(v) => setSelectedPropScale(v)}
-                  />
-                )}
+                <DimensionControl
+                  slim
+                  label="Size"
+                  value={selectedProp.scale}
+                  min={PROP_SCALE_LIMITS.min}
+                  max={PROP_SCALE_LIMITS.max}
+                  step={PROP_SCALE_LIMITS.step}
+                  unit="×"
+                  onChange={(v) => setSelectedPropScale(v)}
+                />
               </div>
               <div className="selected-panel-footer-row">
                 <button

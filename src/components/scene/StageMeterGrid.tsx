@@ -1,7 +1,8 @@
 import { useMemo } from 'react';
 import { Line } from '@react-three/drei';
-import { STAGE_GRID_LINE_COLORS } from '../../constants/stage';
+import { STAGE_GUIDE_PALETTES } from '../../constants/stage';
 import { useStageStore } from '../../store/stageStore';
+import { getStageHalfExtents } from '../../utils/stageAxes';
 
 const SPACING = 1;
 
@@ -13,25 +14,24 @@ export function StageMeterGrid() {
   const showStageAreaGrid = useStageStore((s) => s.showStageAreaGrid);
   const { length, width, height } = useStageStore((s) => s.stage);
   const texture = useStageStore((s) => s.stageTexture);
-  const colors = STAGE_GRID_LINE_COLORS[texture];
+  const colors = STAGE_GUIDE_PALETTES[texture].grid;
 
   const lines = useMemo(() => {
     const y = height + 0.007;
-    const halfLength = length / 2;
-    const halfWidth = width / 2;
+    const { halfX, halfZ } = getStageHalfExtents(length, width);
     const items: [number, number, number][][] = [];
 
-    for (let z = -halfWidth; z <= halfWidth + 0.001; z += SPACING) {
+    for (let z = -halfZ; z <= halfZ + 0.001; z += SPACING) {
       items.push([
-        [-halfLength, y, z],
-        [halfLength, y, z],
+        [-halfX, y, z],
+        [halfX, y, z],
       ]);
     }
 
-    for (let x = -halfLength; x <= halfLength + 0.001; x += SPACING) {
+    for (let x = -halfX; x <= halfX + 0.001; x += SPACING) {
       items.push([
-        [x, y, -halfWidth],
-        [x, y, halfWidth],
+        [x, y, -halfZ],
+        [x, y, halfZ],
       ]);
     }
 

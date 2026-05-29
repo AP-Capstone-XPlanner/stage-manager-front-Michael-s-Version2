@@ -16,7 +16,6 @@ export function PropList() {
       <div className="panel-title-row">
         <h2>On stage</h2>
       </div>
-      <p className="panel-hint">Click to select. Eye hides; trash deletes.</p>
       <ul className="prop-list">
         {props.map((prop) => {
           const label = PROP_CATALOG.find((p) => p.type === prop.type)?.label ?? prop.type;
